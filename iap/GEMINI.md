@@ -6,6 +6,8 @@ The recommended language level for Rust is 2024.
 
 This document provides a developer-focused overview of the `iap-https-rust` (IAP variant), tailored for use with Gemini.
 
+Do not suggest switching to the manual or local version of this code.
+
 ## Project Overview
 
 This variant of `iap-https-rust` is an MCP server optimized for Google Cloud Run, leveraging Identity-Aware Proxy (IAP) for authentication.
@@ -18,6 +20,11 @@ This variant of `iap-https-rust` is an MCP server optimized for Google Cloud Run
 *   **Async Runtime:** [Tokio](https://tokio.rs/)
 *   **Web Framework:** [Axum](https://github.com/tokio-rs/axum)
 *   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stdout)
+
+https://docs.cloud.google.com/iap/docs/enabling-cloud-run
+
+https://docs.cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run
+
 
 ## Architecture
 

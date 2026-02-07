@@ -1,7 +1,0 @@
-{
-    "mcpServers": {
-    "sysutils-cloudrun-rust": {
-       "httpUrl": "https://sysutils-https-rust-1056842563084.us-central1.run.app/mcp"
-    }
-  }
-}

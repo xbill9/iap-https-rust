@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "iap-https-rust": {
-      "httpUrl": "https://iap-https-rust-1056842563084.us-central1.run.app/mcp",
+      "httpUrl": "https://iap-https-rust-fgasxpwzoq-uc.a.run.app/",
       "authProviderType": "service_account_impersonation",
       "targetAudience": "1056842563084-kcshpku3it1dhehp50opr9ele2gko0e7.apps.googleusercontent.com",
       "targetServiceAccount": "mcp-server-sa@comglitn.iam.gserviceaccount.com"
