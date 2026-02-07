@@ -4,12 +4,13 @@ A Rust-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) se
 
 ## Project Structure
 
-This repository contains two variants of the MCP server:
+This repository contains three variants of the MCP server:
 
 1.  **`iap/`**: The standard version designed for use with Google Cloud Identity-Aware Proxy (IAP). It relies on IAP to handle authentication and decodes the `x-goog-iap-jwt-assertion` header to provide identity context.
-2.  **`manual/`**: An enhanced version that adds a manual API key check. It looks for the `MCP_API_KEY` environment variable; if set, it validates the `x-goog-api-key` header on incoming requests.
+2.  **`manual/`**: An enhanced version that adds a manual API key check. It looks for the `MCP_API_KEY` environment variable; if set, it validates the `x-goog-api-key` header on incoming requests. Optimized for Cloud Run deployment.
+3.  **`local/`**: Similar to the `manual/` version with API key support, but tailored for local development and testing without containerization or Cloud Build configurations.
 
-Both variants provide the same set of system utility tools.
+All variants provide the same set of system utility tools.
 
 ## Features
 
@@ -46,6 +47,13 @@ make run
 #### Manual Version
 ```bash
 cd manual
+make build
+MCP_API_KEY=your-secret-key make run
+```
+
+#### Local Version (Development)
+```bash
+cd local
 make build
 MCP_API_KEY=your-secret-key make run
 ```

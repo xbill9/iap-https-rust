@@ -47,11 +47,3 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 *   **Formatting:** `make fmt`
 *   **Linting:** `make clippy`
 *   **Testing:** `make test`
-
-## Deployment
-
-Deployment configuration is managed via `cloudbuild.yaml`.
-
-```bash
-make deploy
-```

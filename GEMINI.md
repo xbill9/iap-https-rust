@@ -12,9 +12,10 @@ This document provides a developer-focused overview of the `iap-https-rust` proj
 
 ### Project Structure
 
-This repository is split into two variants:
+This repository is split into three variants:
 *   **`iap/`**: Standard implementation for IAP-protected Cloud Run services.
-*   **`manual/`**: Adds an optional `MCP_API_KEY` check (via `x-goog-api-key` header) for additional security.
+*   **`manual/`**: Adds an optional `MCP_API_KEY` check (via `x-goog-api-key` header) for additional security. Optimized for Cloud Run.
+*   **`local/`**: API key support tailored for local development (no containerization).
 
 ### Key Technologies
 
@@ -28,11 +29,11 @@ This repository is split into two variants:
 
 ## Architecture
 
-Each variant (`iap/` and `manual/`) has its own `src/main.rs`:
+Each variant (`iap/`, `manual/`, and `local/`) has its own `src/main.rs`:
 *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
 *   `iap_system_info`: The primary MCP tool, returning a report including IAP context and system metrics.
 *   `collect_system_info`: Shared logic for both MCP tool and CLI `info` command.
-*   `iap_middleware`: An Axum middleware that captures IAP JWT headers and (in `manual` variant) validates API keys.
+*   `iap_middleware`: An Axum middleware that captures IAP JWT headers and (in `manual` and `local` variants) validates API keys.
 *   `main`: Initializes the `StreamableHttpService`, sets up Axum with a `/health` route and IAP middleware, and listens on `PORT`.
 
 ## Getting Started
@@ -42,13 +43,13 @@ Each subdirectory has its own `Makefile`.
 ### Environment Setup
 
 *   `PORT`: Port for the HTTP server (default: 8080).
-*   `RUST_LOG`: Logging level (default: `info,iap_https_rust=debug` or `info,manual_https_rust=debug`).
-*   `MCP_API_KEY`: (Manual variant only) Required API key for the `x-goog-api-key` header.
+*   `RUST_LOG`: Logging level (default: `info,iap_https_rust=debug`, `info,manual_https_rust=debug`, or `info,sysutils_local_rust=debug`).
+*   `MCP_API_KEY`: (Manual/Local variants only) Required API key for the `x-goog-api-key` header.
 
 ### Initial Build & Run
 
 ```bash
-cd iap # or cd manual
+cd iap # or cd manual or cd local
 make build
 make run
 ```
@@ -73,7 +74,7 @@ Tests include schema generation verification and basic tool functionality checks
 
 ## Deployment
 
-Deployment is handled via `cloudbuild.yaml` in each variant's directory.
+Deployment is handled via `cloudbuild.yaml` in the `iap/` and `manual/` directories. Note that the `local/` variant is not intended for Cloud Run deployment.
 
 ```bash
 cd iap # or cd manual
@@ -85,6 +86,6 @@ make deploy
 You can use Gemini to help you with various tasks in this project. Relevant examples:
 
 *   "Add a new tool to `SysUtils` in `iap/src/main.rs` that checks disk usage."
-*   "Explain the difference between the `iap` and `manual` variants."
-*   "How does the `iap_middleware` in `manual/src/main.rs` handle the API key check?"
-*   "Modify `collect_system_info` in both variants to include network interface information."
+*   "Explain the difference between the `iap`, `manual`, and `local` variants."
+*   "How does the `iap_middleware` in `local/src/main.rs` handle the API key check?"
+*   "Modify `collect_system_info` in all variants to include network interface information."
