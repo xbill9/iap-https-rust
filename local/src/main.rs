@@ -284,7 +284,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,manual_https_rust=debug".into()),
+                .unwrap_or_else(|_| "info,sysutils_local_rust=debug".into()),
         )
         .with(
             tracing_subscriber::fmt::layer()

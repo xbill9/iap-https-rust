@@ -264,7 +264,7 @@ async fn main() -> Result<()> {
         )
         .with(
             tracing_subscriber::fmt::layer()
-                .with_writer(std::io::stdout)
+                .with_writer(std::io::stderr)
                 .json(),
         )
         .init();

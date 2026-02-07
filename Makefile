@@ -17,6 +17,7 @@ clean:
 	@echo "Cleaning the projects..."
 	@$(MAKE) -C iap clean
 	@$(MAKE) -C manual clean
+	@$(MAKE) -C local clean
 
 # Run tests for both
 test:
