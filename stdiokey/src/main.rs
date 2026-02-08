@@ -53,6 +53,71 @@ struct SysUtils {
 async fn fetch_mcp_api_key(project_id: &str) -> Result<String> {
     tracing::info!("Fetching MCP API Key for project: {}", project_id);
 
+    // Try gcloud first for local development, it's more reliable with User ADC
+    match fetch_mcp_api_key_gcloud(project_id).await {
+        Ok(key) => {
+            tracing::info!("Successfully fetched API key via gcloud");
+            return Ok(key);
+        }
+        Err(e) => {
+            tracing::debug!("gcloud fetch failed (expected if gcloud not installed): {}", e);
+        }
+    }
+
+    // Fallback to library-based approach (works in Cloud Run/GCE with Service Accounts)
+    fetch_mcp_api_key_library(project_id).await
+}
+
+async fn fetch_mcp_api_key_gcloud(project_id: &str) -> Result<String> {
+    let output = tokio::process::Command::new("gcloud")
+        .args([
+            "services",
+            "api-keys",
+            "list",
+            &format!("--project={}", project_id),
+            "--filter=displayName='MCP API Key'",
+            "--format=value(name)",
+        ])
+        .output()
+        .await
+        .context("Failed to execute gcloud command")?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "gcloud list failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let key_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if key_name.is_empty() {
+        return Err(anyhow::anyhow!("MCP API Key not found via gcloud"));
+    }
+
+    let output = tokio::process::Command::new("gcloud")
+        .args([
+            "services",
+            "api-keys",
+            "get-key-string",
+            &key_name,
+            &format!("--project={}", project_id),
+            "--format=value(keyString)",
+        ])
+        .output()
+        .await
+        .context("Failed to execute gcloud get-key-string")?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "gcloud get-key-string failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn fetch_mcp_api_key_library(project_id: &str) -> Result<String> {
     // 1. Create the API Client first (so we can use it for auth)
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build(
@@ -67,18 +132,23 @@ async fn fetch_mcp_api_key(project_id: &str) -> Result<String> {
     // 2. Authenticate using Application Default Credentials
     let opts = yup_oauth2::ApplicationDefaultCredentialsFlowOpts::default();
     let auth_builder = ApplicationDefaultCredentialsAuthenticator::builder(opts).await;
-    
+
     let auth: yup_oauth2::authenticator::Authenticator<_> = match auth_builder {
-        ApplicationDefaultCredentialsTypes::InstanceMetadata(builder) => builder.build().await.context("Failed to build InstanceMetadata authenticator")?,
-        ApplicationDefaultCredentialsTypes::ServiceAccount(builder) => builder.build().await.context("Failed to build ServiceAccount authenticator")?,
+        ApplicationDefaultCredentialsTypes::InstanceMetadata(builder) => builder
+            .build()
+            .await
+            .context("Failed to build InstanceMetadata authenticator")?,
+        ApplicationDefaultCredentialsTypes::ServiceAccount(builder) => builder
+            .build()
+            .await
+            .context("Failed to build ServiceAccount authenticator")?,
     };
 
     let hub = ApiKeysService::new(client, auth);
 
     // 3. List keys to find the one named "MCP API Key"
-    // The parent should be "projects/{project_id}/locations/global"
     let parent = format!("projects/{}/locations/global", project_id);
-    
+
     let response = hub
         .projects()
         .locations_keys_list(&parent)
@@ -87,7 +157,7 @@ async fn fetch_mcp_api_key(project_id: &str) -> Result<String> {
         .context("Failed to list API keys")?;
 
     let keys = response.1.keys.context("No keys found in project")?;
-    
+
     let target_key = keys
         .into_iter()
         .find(|k| k.display_name.as_deref() == Some("MCP API Key"))
@@ -104,12 +174,15 @@ async fn fetch_mcp_api_key(project_id: &str) -> Result<String> {
         .await
         .context("Failed to get key string")?;
 
-    let key_string = response.1.key_string.context("Response contained no key string")?;
-    
+    let key_string = response
+        .1
+        .key_string
+        .context("Response contained no key string")?;
+
     Ok(key_string)
 }
 
-fn collect_system_info() -> String {
+fn collect_system_info(api_status: Option<&str>) -> String {
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -117,6 +190,10 @@ fn collect_system_info() -> String {
 
     let _ = writeln!(report, "System Information Report");
     let _ = writeln!(report, "=========================\n");
+
+    if let Some(status) = api_status {
+        let _ = writeln!(report, "{}", status);
+    }
 
     // System name and kernel
     let _ = writeln!(report, "System Information");
@@ -230,7 +307,7 @@ impl SysUtils {
         input_schema = "SYSTEM_INFO_SCHEMA.clone()"
     )]
     async fn local_system_info(&self, _params: Parameters<SystemInfoRequest>) -> String {
-        collect_system_info()
+        collect_system_info(Some("Authentication:   [VERIFIED] (Running as MCP Server)\n"))
     }
 
     #[tool(
@@ -256,18 +333,9 @@ impl ServerHandler for SysUtils {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    // Check for CLI arguments for direct execution
+async fn main() {
+    // Collect CLI arguments
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 {
-        if args[1] == "info" {
-            println!("{}", collect_system_info());
-            return Ok(())
-        } else if args[1] == "disk" {
-            println!("{}", collect_disk_usage());
-            return Ok(())
-        }
-    }
 
     // Initialize tracing subscriber for logging
     // IMPORTANT: Stdio transport uses stdout for JSON-RPC, so logs MUST go to stderr.
@@ -275,7 +343,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,stdiokey=debug".into()),
+                .unwrap_or_else(|_| "info,sysutils_stdiokey_rust=debug".into()),
         )
         .with(
             tracing_subscriber::fmt::layer()
@@ -285,50 +353,92 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    // Key Verification Logic
+    if let Err(e) = handle_main(args).await {
+        tracing::error!(error = ?e, "Application failed");
+        std::process::exit(1);
+    }
+}
+
+async fn check_api_key_status(args: &[String]) -> String {
+    let mut status = String::new();
+    let _ = writeln!(status, "MCP API Key Status");
+    let _ = writeln!(status, "------------------");
+
+    let mut provided_key = std::env::var("MCP_API_KEY").ok();
+    if provided_key.is_none() {
+        for i in 1..args.len() {
+            if args[i] == "--key" && i + 1 < args.len() {
+                provided_key = Some(args[i + 1].clone());
+                break;
+            }
+        }
+    }
+
+    if let Some(key) = provided_key {
+        let _ = writeln!(status, "Provided Key:     [FOUND]");
+        // Fetch cloud key
+        let project_id = "1056842563084";
+        match fetch_mcp_api_key(project_id).await {
+            Ok(expected_key) => {
+                if key == expected_key {
+                    let _ = writeln!(status, "Cloud Match:      [MATCHED]");
+                } else {
+                    let _ = writeln!(status, "Cloud Match:      [MISMATCH]");
+                }
+            }
+            Err(e) => {
+                let _ = writeln!(status, "Cloud Match:      [ERROR: {:?}]", e);
+            }
+        }
+    } else {
+        let _ = writeln!(status, "Provided Key:     [NOT FOUND]");
+    }
+    status.push('\n');
+    status
+}
+
+async fn handle_main(args: Vec<String>) -> Result<()> {
+    // Check for CLI arguments for direct execution FIRST
+    if args.iter().any(|arg| arg == "info") {
+        let api_status = check_api_key_status(&args).await;
+        println!("{}", collect_system_info(Some(&api_status)));
+        return Ok(());
+    } else if args.iter().any(|arg| arg == "disk") {
+        println!("{}", collect_disk_usage());
+        return Ok(());
+    }
+
+    // Key Verification Logic (Presence Check)
     let mut provided_key = std::env::var("MCP_API_KEY").ok();
 
     if provided_key.is_none() {
         for i in 1..args.len() {
             if args[i] == "--key" && i + 1 < args.len() {
-                provided_key = Some(args[i+1].clone());
+                provided_key = Some(args[i + 1].clone());
                 break;
             }
         }
     }
 
     if provided_key.is_none() {
-         tracing::error!("Authentication Required: Please provide the API Key using --key <KEY> or MCP_API_KEY environment variable");
-         std::process::exit(1);
+        return Err(anyhow::anyhow!("Authentication Required: Please provide the API Key using --key <KEY> or MCP_API_KEY environment variable"));
     }
 
-    // Fetch MCP API Key
+    // Fetch MCP API Key and Verify
     // Hardcoded project ID matching the manual variant
     let project_id = "1056842563084";
-    let expected_key = match fetch_mcp_api_key(project_id).await {
-        Ok(key) => {
-            tracing::info!("Successfully fetched MCP API Key from Cloud API Keys");
-            key
-        }
-        Err(e) => {
-            tracing::error!("Failed to fetch MCP API Key: {:?}", e);
-            std::process::exit(1);
-        }
-    };
+    let expected_key = fetch_mcp_api_key(project_id).await
+        .context("Failed to fetch MCP API Key")?;
 
     if provided_key.as_ref() != Some(&expected_key) {
-        tracing::error!("Authentication Failed: Invalid API Key provided");
-        std::process::exit(1);
+        return Err(anyhow::anyhow!("Authentication Failed: Invalid API Key provided"));
     }
 
     tracing::info!("Authentication Successful");
 
     tracing::info!("Starting stdiokey MCP Stdio server");
 
-    if let Err(e) = run_server().await {
-        tracing::error!(error = ?e, "MCP server encountered a fatal error");
-        std::process::exit(1);
-    }
+    run_server().await.context("MCP server encountered a fatal error")?;
 
     Ok(())
 }

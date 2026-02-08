@@ -33,9 +33,15 @@ The server exposes the following MCP tools:
 ## Authentication
 
 This server requires an **MCP API Key** for security, even when running locally via Stdio.
-The server will verify the provided key against the "MCP API Key" stored in Google Cloud API Keys (Project ID: 1056842563084).
+The server will verify the provided key against the "MCP API Key" stored in Google Cloud API Keys (Project ID: `1056842563084`).
 
-You must provide the key using the `--key` argument when starting the server.
+You can provide the key in two ways:
+1.  Using the `--key` argument when starting the server.
+2.  Setting the `MCP_API_KEY` environment variable.
+
+The server uses a two-stage verification process:
+*   It attempts to fetch the valid key using the `gcloud` CLI (ideal for local development).
+*   It falls back to the Google Cloud API Keys library using Application Default Credentials (ADC).
 
 ## Installation & Build
 
@@ -50,7 +56,7 @@ cargo build --release
 ### 1. As an MCP Server (with Gemini)
 
 This project is configured for use with the Gemini CLI. The configuration is located in `.gemini/settings.json`.
-**Note:** You must update the `args` in `settings.json` to include your API key:
+**Note:** You must provide your API key either via `args` or `env`:
 
 ```json
 {
@@ -59,7 +65,8 @@ This project is configured for use with the Gemini CLI. The configuration is loc
       "command": "cargo",
       "args": ["run", "--quiet", "--release", "--", "--key", "YOUR_SECRET_KEY"],
       "env": {
-        "RUST_LOG": "info,stdiokey=debug"
+        "RUST_LOG": "info,stdiokey=debug",
+        "MCP_API_KEY": "YOUR_SECRET_KEY"
       }
     }
   }
@@ -68,13 +75,13 @@ This project is configured for use with the Gemini CLI. The configuration is loc
 
 ### 2. Direct CLI Usage
 
-You can run the tools directly without an MCP client (no auth required for these):
+You can run the tools directly without an MCP client. These commands will also display the verification status of your API key if provided:
 
 **System Info:**
 ```bash
 make info
 # OR
-cargo run --quiet -- info
+cargo run --quiet -- info --key YOUR_KEY
 ```
 
 **Disk Usage:**
@@ -91,7 +98,8 @@ To start the server manually (it will wait for JSON-RPC input on stdin):
 ```bash
 make run KEY=your-secret-key
 # OR
-cargo run --release -- --key your-secret-key
+export MCP_API_KEY=your-secret-key
+cargo run --release
 ```
 
 ## Development

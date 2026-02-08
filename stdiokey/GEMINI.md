@@ -29,14 +29,17 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
         *   `disk_usage`: Disk usage information for all mounted disks.
     *   `collect_system_info`: Shared logic for system reports. Captures system metrics (CPU, Memory, OS version, Network interfaces).
     *   **Security & Identity**:
-        *   Validates a provided `--key` argument against the project's "MCP API Key" fetched from Google Cloud API Keys service.
-        *   Uses Application Default Credentials (ADC) for fetching the valid key.
+        *   **Two-Stage Key Fetching**: 
+            1.  Attempts to use `gcloud services api-keys` CLI to fetch the "MCP API Key" (optimized for local dev with User ADC).
+            2.  Falls back to `google-apikeys2` Rust library using Application Default Credentials (ADC).
+        *   Validates provided key (via `--key` or `MCP_API_KEY` env) against the fetched cloud key.
+        *   Project ID: `1056842563084`.
     *   `main`: 
         *   Handles `info` and `disk` CLI commands for direct output.
-        *   Performs API Key validation (exits if invalid).
-        *   Initializes `SysUtils` service.
+        *   Performs API Key validation (exits if invalid or missing).
+        *   Initializes `SysUtils` service with `LazyLock` schema generation.
         *   Starts the MCP server using `transport::stdio`.
-        *   Logs to stderr to avoid interfering with stdout JSON-RPC.
+        *   **Logging**: Uses `tracing` with JSON format, explicitly directed to `stderr` to prevent JSON-RPC interference on `stdout`.
 
 ## Getting Started
 
@@ -44,10 +47,10 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
 
 1.  **Build:** `cargo build`
 2.  **Run Server:** 
-    *   **Via Cargo:** `cargo run -- --key <YOUR_API_KEY>` (Starts MCP server on Stdio)
+    *   **Via Cargo:** `cargo run -- --key <YOUR_API_KEY>` or `MCP_API_KEY=<KEY> cargo run`
     *   **Via Make:** `make run KEY=<YOUR_API_KEY>`
 3.  **CLI Commands:**
-    *   `cargo run -- info`: Display system information report directly.
+    *   `cargo run -- info`: Display system information and API key verification status.
     *   `cargo run -- disk`: Display disk usage report directly.
 
 ## Development Workflow

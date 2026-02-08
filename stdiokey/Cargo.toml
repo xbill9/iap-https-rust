@@ -1,8 +1,8 @@
 [package]
 name = "sysutils-stdiokey-rust"
-version = "0.2.0"
+version = "0.4.0"
 edition = "2024"
-description = "System Utilities MCP Stdio transport in Rust"
+description = "System Utilities with API Key MCP Stdio transport in Rust"
 license = "MIT"
 repository = "https://github.com/xbill9/iap-https-rust"
 
@@ -13,7 +13,7 @@ serde = { version = "^1.0.219", features = ["derive"] }
 serde_json = "^1.0.140"
 schemars = "1"
 sysinfo = "0.37.2"
-tokio = { version = "^1.46.0", features = ["macros", "rt-multi-thread", "signal"] }
+tokio = { version = "^1.46.0", features = ["macros", "rt-multi-thread", "signal", "process"] }
 tracing = "^0.1.41"
 tracing-subscriber = { version = "^0.3.19", features = ["env-filter", "json", "tracing-log"] }
 # Added for Auth
