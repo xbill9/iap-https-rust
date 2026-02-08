@@ -17,6 +17,9 @@ use std::sync::{Arc, LazyLock};
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct IapSystemInfoRequest {}
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct DiskUsageRequest {}
+
 #[derive(Debug, Clone, serde::Serialize)]
 struct IapContext {
     payload: Value,
@@ -44,6 +47,17 @@ static SYSTEM_INFO_SCHEMA: LazyLock<Arc<serde_json::Map<String, serde_json::Valu
         let settings = schemars::generate::SchemaSettings::draft07();
         let generator = settings.into_generator();
         let schema = generator.into_root_schema_for::<IapSystemInfoRequest>();
+        let mut val = serde_json::to_value(schema).unwrap();
+        let obj = val.as_object_mut().unwrap();
+        obj.remove("$schema");
+        Arc::new(obj.clone())
+    });
+
+static DISK_USAGE_SCHEMA: LazyLock<Arc<serde_json::Map<String, serde_json::Value>>> =
+    LazyLock::new(|| {
+        let settings = schemars::generate::SchemaSettings::draft07();
+        let generator = settings.into_generator();
+        let schema = generator.into_root_schema_for::<DiskUsageRequest>();
         let mut val = serde_json::to_value(schema).unwrap();
         let obj = val.as_object_mut().unwrap();
         obj.remove("$schema");
@@ -181,6 +195,19 @@ fn collect_system_info() -> String {
         sys.used_swap() / 1024 / 1024
     ));
 
+    report.push_str("\nNetwork Interfaces\n");
+    report.push_str("------------------\n");
+    let networks = sysinfo::Networks::new_with_refreshed_list();
+    for (interface_name, network) in &networks {
+        report.push_str(&format!(
+            "{:<18}: RX: {:>10} bytes, TX: {:>10} bytes (MAC: {})\n",
+            interface_name,
+            network.total_received(),
+            network.total_transmitted(),
+            network.mac_address()
+        ));
+    }
+
     report
 }
 
@@ -196,8 +223,42 @@ impl SysUtils {
         description = "Get a detailed system information report including kernel, cores, and memory usage.",
         input_schema = "SYSTEM_INFO_SCHEMA.clone()"
     )]
-    async fn iap_system_info(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
+    async fn local_system_info(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
         collect_system_info()
+    }
+
+    #[tool(
+        description = "Get disk usage information for all mounted disks.",
+        input_schema = "DISK_USAGE_SCHEMA.clone()"
+    )]
+    async fn disk_usage(&self, _params: Parameters<DiskUsageRequest>) -> String {
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+
+        let mut report = String::new();
+        report.push_str("Disk Usage Report\n");
+        report.push_str("=================\n\n");
+
+        for disk in &disks {
+            let total = disk.total_space();
+            let available = disk.available_space();
+            let used = total - available;
+            let usage_pct = if total > 0 {
+                (used as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            report.push_str(&format!(
+                "{:<20} {:<10} {:>10} / {:>10} MB used ({:.1}%)\n",
+                disk.mount_point().to_string_lossy(),
+                disk.file_system().to_string_lossy(),
+                used / 1024 / 1024,
+                total / 1024 / 1024,
+                usage_pct
+            ));
+        }
+
+        report
     }
 }
 
@@ -275,9 +336,18 @@ async fn iap_middleware(
 async fn main() -> Result<()> {
     // Check for CLI arguments
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && args[1] == "info" {
-        println!("{}", collect_system_info());
-        return Ok(());
+    if args.len() > 1 {
+        if args[1] == "info" {
+            println!("{}", collect_system_info());
+            return Ok(());
+        } else if args[1] == "disk" {
+            let sysutils = SysUtils::new();
+            println!(
+                "{}",
+                sysutils.disk_usage(Parameters(DiskUsageRequest {})).await
+            );
+            return Ok(());
+        }
     }
 
     // Initialize tracing subscriber for logging
@@ -360,14 +430,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_iap_system_info() {
+    async fn test_local_system_info() {
         let sysutils = SysUtils::new();
         let report = sysutils
-            .iap_system_info(Parameters(IapSystemInfoRequest {}))
+            .local_system_info(Parameters(IapSystemInfoRequest {}))
             .await;
         assert!(report.contains("System Information Report"));
         assert!(report.contains("CPU Information"));
+        assert!(report.contains("Network Interfaces"));
         assert!(!report.contains("Disk Information"));
+    }
+
+    #[tokio::test]
+    async fn test_disk_usage() {
+        let sysutils = SysUtils::new();
+        let report = sysutils
+            .disk_usage(Parameters(DiskUsageRequest {}))
+            .await;
+        assert!(report.contains("Disk Usage Report"));
     }
 
     #[test]
