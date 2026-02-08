@@ -8,7 +8,7 @@ This document provides a developer-focused overview of the `manual-https-rust` (
 
 ## Project Overview
 
-This variant of `iap-https-rust` adds an explicit API key check to the MCP server. It is ideal for environments where you want an additional layer of security beyond IAP or for testing purposes.
+This variant of `iap-https-rust` adds an explicit API key check to the MCP server. It is ideal for environments where you want an additional layer of security beyond IAP or for testing purposes. It features automated API key fetching from Google Cloud API Keys service using Application Default Credentials (ADC).
 
 ### Key Technologies
 
@@ -17,6 +17,7 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 *   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.x)
 *   **Async Runtime:** [Tokio](https://tokio.rs/) (v1.x)
 *   **Web Framework:** [Axum](https://github.com/tokio-rs/axum) (v0.8.x)
+*   **Security:** `google-apikeys2`, `yup-oauth2` (for ADC-based API key fetching)
 *   **Serialization:** [Serde](https://serde.rs/) & [Schemars](https://crates.io/crates/schemars)
 *   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stdout)
 
@@ -24,9 +25,12 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 
 *   **`src/main.rs`**: Single entry point. 
     *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
-    *   `sysutils_manual_rust`: The primary MCP tool.
-    *   `collect_system_info`: Shared logic for both MCP tool and CLI `info` command.
-    *   `iap_middleware`: Captures IAP JWT *and* validates the `x-goog-api-key` header against the `MCP_API_KEY` environment variable.
+    *   **MCP Tools**:
+        *   `sysutils_manual_rust`: Detailed system info (kernel, CPU, memory, network).
+        *   `disk_usage`: Disk usage information for all mounted disks.
+        *   `list_processes`: Top 20 running processes by memory usage.
+    *   `fetch_mcp_api_key`: Automatically fetches the API key named "MCP API Key" from the Google Cloud project using ADC.
+    *   `iap_middleware`: Captures IAP JWT *and* validates the `x-goog-api-key` header against the `MCP_API_KEY` environment variable (or the automatically fetched key).
     *   `main`: Initializes the `StreamableHttpService` with `LocalSessionManager`, sets up Axum with a `/health` route, and applies the security middleware.
 
 ## Getting Started
@@ -35,13 +39,16 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 
 *   `PORT`: Port for the HTTP server (default: 8080).
 *   `RUST_LOG`: Logging level (default: `info,manual_https_rust=debug`).
-*   `MCP_API_KEY`: **Required** if you want to enable API key validation.
+*   `MCP_API_KEY`: Optional if "MCP API Key" exists in Google Cloud project; otherwise **Required** for API key validation.
 
 ### Initial Build & Run
 
 1.  **Build:** `cargo build`
-2.  **Run:** `MCP_API_KEY=my-key make run`
-3.  **CLI Info:** `cargo run -- info`
+2.  **Run:** `MCP_API_KEY=my-key make run` (or rely on automated fetching if configured).
+3.  **CLI Commands:**
+    *   `cargo run -- info`: Display system information report.
+    *   `cargo run -- disk`: Display disk usage report.
+    *   `cargo run -- processes`: Display process list report.
 
 ## Development Workflow
 
