@@ -31,10 +31,17 @@ This repository is split into three variants:
 
 Each variant (`iap/`, `manual/`, and `local/`) has its own `src/main.rs`:
 *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
-*   `iap_system_info`: The primary MCP tool, returning a report including IAP context and system metrics.
-*   `collect_system_info`: Shared logic for both MCP tool and CLI `info` command.
-*   `iap_middleware`: An Axum middleware that captures IAP JWT headers and (in `manual` and `local` variants) validates API keys.
-*   `main`: Initializes the `StreamableHttpService`, sets up Axum with a `/health` route and IAP middleware, and listens on `PORT`.
+*   **MCP Tools**:
+    *   `iap/`: `iap_system_info`
+    *   `manual/`: `sysutils_manual_rust`, `disk_usage`, `list_processes`
+    *   `local/`: `local_system_info`, `disk_usage`
+*   `collect_system_info`: Shared logic for system reports. Includes network interface info in `manual` and `local`.
+*   **Security & Identity**:
+    *   `iap_middleware`: Captures IAP JWT headers and validates API keys (if applicable).
+    *   **API Key Fetching**: 
+        *   `manual/`: Uses `google-apikeys2` and ADC to fetch "MCP API Key" programmatically.
+        *   `local/`: Uses `gcloud` CLI to fetch "MCP API Key" for development.
+*   `main`: Initializes the `StreamableHttpService`, sets up Axum with a `/health` route, and listens on `PORT`.
 
 ## Getting Started
 

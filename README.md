@@ -7,24 +7,33 @@ A Rust-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) se
 This repository contains three variants of the MCP server:
 
 1.  **`iap/`**: The standard version designed for use with Google Cloud Identity-Aware Proxy (IAP). It relies on IAP to handle authentication and decodes the `x-goog-iap-jwt-assertion` header to provide identity context.
-2.  **`manual/`**: An enhanced version that adds a manual API key check. It looks for the `MCP_API_KEY` environment variable; if set, it validates the `x-goog-api-key` header on incoming requests. Optimized for Cloud Run deployment.
-3.  **`local/`**: Similar to the `manual/` version with API key support, but tailored for local development and testing without containerization or Cloud Build configurations.
+2.  **`manual/`**: An enhanced version that adds a manual API key check and advanced tools. It automatically fetches an API key named "MCP API Key" from your Google Cloud project using Application Default Credentials (ADC). Optimized for Cloud Run deployment.
+3.  **`local/`**: Tailored for local development. It uses `gcloud` commands to fetch the API key and supports a subset of the advanced tools.
 
-All variants provide the same set of system utility tools.
+## Features & Tools
 
-## Features
+| Feature / Tool | iap/ | manual/ | local/ |
+| :--- | :---: | :---: | :---: |
+| **IAP JWT Context** | ✅ | ✅ | ✅ |
+| **API Key Security** | ❌ | ✅ | ✅ |
+| **Auto Key Fetching** | ❌ | ✅ (ADC) | ✅ (gcloud) |
+| **`iap_system_info`** | ✅ | ❌ | ❌ |
+| **`sysutils_manual_rust`** | ❌ | ✅ | ❌ |
+| **`local_system_info`** | ❌ | ❌ | ✅ |
+| **`disk_usage`** | ❌ | ✅ | ✅ |
+| **`list_processes`** | ❌ | ✅ | ❌ |
 
-*   **MCP Protocol Support**: Implements the Model Context Protocol over streaming HTTP using the `rmcp` library.
+### Tool Descriptions
+
 *   **System Information**: Provides a detailed report of the host system.
-    *   **Tool**: `iap_system_info`
-    *   **Collected Data**: 
-        *   **IAP Context**: Decodes identity from IAP JWT.
-        *   **System**: Name, Kernel version, OS version, Host name.
-        *   **CPU**: Number of cores.
-        *   **Memory**: Total/Used RAM and Total/Used Swap.
-*   **Logging**: Structured JSON logging to `stdout` using `tracing-subscriber`.
-*   **CLI Mode**: Direct execution to print system information without starting the MCP server.
-*   **Health Check**: Includes a `/health` endpoint for monitoring.
+    *   **Data Collected**: IAP Context, Request Headers, System (Name, Kernel, OS), CPU (Cores), Memory (RAM, Swap), and Network Interfaces (manual/local only).
+*   **Disk Usage**: Reports disk usage for all mounted partitions (manual/local only).
+*   **Process List**: Lists the top 20 running processes by memory usage (manual only).
+
+## Logging
+
+*   **Structured JSON**: All variants log in JSON format.
+*   **Destination**: `iap/` and `manual/` log to `stdout` (standard for Cloud Run), while `local/` logs to `stderr`.
 
 ## Getting Started
 
@@ -35,40 +44,29 @@ All variants provide the same set of system utility tools.
 
 ### Build & Run
 
-Each variant has its own directory and `Makefile`. To build or run a specific version, navigate to its directory:
+Each variant has its own directory and `Makefile`.
 
-#### IAP Version
-```bash
-cd iap
-make build
-make run
-```
-
-#### Manual Version
+#### Manual Version (Recommended for Features)
 ```bash
 cd manual
 make build
-MCP_API_KEY=your-secret-key make run
+# Ensure ADC is configured or set MCP_API_KEY env var
+make run
 ```
 
-#### Local Version (Development)
-```bash
-cd local
-make build
-MCP_API_KEY=your-secret-key make run
-```
+### CLI Usage (Direct Reports)
 
-### CLI Usage (Direct Info)
-
-You can run the system information tool directly from the command line in either directory:
+You can run tools directly from the command line:
 
 ```bash
-cargo run -- info
+cargo run -- info       # System Info
+cargo run -- disk       # Disk Usage (manual/local)
+cargo run -- processes  # Process List (manual)
 ```
 
 ## Development
 
-The root directory contains a `Makefile` that can be used to clean all sub-projects. Individual development tasks should be performed within the `iap/` or `manual/` directories.
+The root directory contains a `Makefile` that can be used to clean all sub-projects. Individual development tasks should be performed within the subdirectories.
 
 *   **Format Code**: `make fmt`
 *   **Lint Code**: `make clippy`
@@ -76,11 +74,10 @@ The root directory contains a `Makefile` that can be used to clean all sub-proje
 
 ## Deployment
 
-Both variants are containerized and ready for deployment to Google Cloud Run via Google Cloud Build.
+`iap/` and `manual/` are containerized and ready for deployment to Google Cloud Run via Google Cloud Build.
 
 ```bash
 cd iap # or cd manual
 make deploy
 ```
 
-The `Dockerfile` in each directory uses a multi-stage build and targets a distroless runtime for security.

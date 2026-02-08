@@ -23,11 +23,13 @@ This variant of `iap-https-rust` is optimized for local development. It supports
 
 *   **`src/main.rs`**: Single entry point. 
     *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
-    *   `local_system_info`: MCP tool that returns a comprehensive system report.
-    *   `collect_system_info`: Shared logic for both MCP tool and CLI `info` command. Captures:
+    *   **MCP Tools**:
+        *   `local_system_info`: Comprehensive system report including IAP context and system metrics.
+        *   `disk_usage`: Disk usage information for all mounted disks.
+    *   `collect_system_info`: Shared logic for system reports. Captures:
         *   IAP JWT Claims (from `x-goog-iap-jwt-assertion`)
         *   HTTP Request Headers
-        *   System metrics (CPU, Memory, OS version)
+        *   System metrics (CPU, Memory, OS version, Network interfaces)
     *   `iap_middleware`: 
         *   Validates `x-goog-api-key` header against `MCP_API_KEY` environment variable (if set).
         *   Decodes IAP JWT assertions.
@@ -50,7 +52,9 @@ This variant of `iap-https-rust` is optimized for local development. It supports
 
 1.  **Build:** `cargo build`
 2.  **Run Server:** `MCP_API_KEY=my-key make run`
-3.  **CLI Info:** `cargo run -- info`
+3.  **CLI Commands:**
+    *   `cargo run -- info`: Display system information report.
+    *   `cargo run -- disk`: Display disk usage report.
 
 ## Development Workflow
 
