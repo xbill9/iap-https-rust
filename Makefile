@@ -20,6 +20,8 @@ clean:
 	@$(MAKE) -C iap clean
 	@$(MAKE) -C manual clean
 	@$(MAKE) -C local clean
+	@$(MAKE) -C stdio clean
+	@$(MAKE) -C stdiokey clean
 
 # Run tests for both
 test:
