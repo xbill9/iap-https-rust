@@ -653,7 +653,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sysutils-local-rust"
+name = "sysutils-stdio-rust"
 version = "0.2.0"
 dependencies = [
  "anyhow",

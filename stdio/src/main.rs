@@ -211,7 +211,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,sysutils_local_rust=debug".into()),
+                .unwrap_or_else(|_| "info,sysutils_stdio_rust=debug".into()),
         )
         .with(
             tracing_subscriber::fmt::layer()
@@ -221,7 +221,7 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    tracing::info!("Starting sysutils-local-rust MCP Stdio server");
+    tracing::info!("Starting sysutils-stdio-rust MCP Stdio server");
 
     if let Err(e) = run_server().await {
         tracing::error!(error = ?e, "MCP server encountered a fatal error");

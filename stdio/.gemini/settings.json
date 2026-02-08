@@ -4,10 +4,11 @@
       "command": "cargo",
       "args": [
         "run",
-        "--quiet"
+        "--quiet",
+        "--release"
       ],
       "env": {
-        "RUST_LOG": "info,sysutils_local_rust=debug"
+        "RUST_LOG": "info,sysutils_stdio_rust=debug"
       }
     }
   }

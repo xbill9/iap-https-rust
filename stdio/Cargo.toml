@@ -1,10 +1,10 @@
 [package]
-name = "sysutils-local-rust"
+name = "sysutils-stdio-rust"
 version = "0.2.0"
 edition = "2024"
 description = "System Utilities MCP Stdio transport in Rust"
 license = "MIT"
-repository = "https://github.com/xbill9/sysutils-rust"
+repository = "https://github.com/xbill9/iap-https-rust"
 
 [dependencies]
 anyhow = "^1.0.98"

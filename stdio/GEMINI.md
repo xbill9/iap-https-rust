@@ -1,10 +1,10 @@
-# Gemini Workspace for `sysutils-local-rust` (v0.2.0)
+# Gemini Workspace for `sysutils-stdio-rust` (v0.2.0)
 
 You are a Rust Developer working with Google Cloud.
 You should follow Rust Best practices.
 The recommended language level for Rust is 2024.
 
-This document provides a developer-focused overview of the `sysutils-local-rust` (Local variant), tailored for use with Gemini.
+This document provides a developer-focused overview of the `sysutils-stdio-rust` (Stdio variant), tailored for use with Gemini.
 
 ## Project Overview
 

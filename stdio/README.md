@@ -1,6 +1,6 @@
-# sysutils-local-rust
+# sysutils-stdio-rust
 
-`sysutils-local-rust` is a Model Context Protocol (MCP) server written in Rust. It provides system utility tools to MCP clients (like Gemini) using the **Stdio transport** (Standard Input/Output).
+`sysutils-stdio-rust` is a Model Context Protocol (MCP) server written in Rust. It provides system utility tools to MCP clients (like Gemini) using the **Stdio transport** (Standard Input/Output).
 
 This project allows LLMs to safely query local system information such as CPU usage, memory statistics, and disk space.
 
@@ -47,11 +47,11 @@ This project is configured for use with the Gemini CLI. The configuration is loc
 ```json
 {
   "mcpServers": {
-    "sysutils-local-rust": {
+    "sysutils-stdio-rust": {
       "command": "cargo",
-      "args": ["run", "--quiet"],
+      "args": ["run", "--quiet", "--release"],
       "env": {
-        "RUST_LOG": "info,sysutils_local_rust=debug"
+        "RUST_LOG": "info,sysutils_stdio_rust=debug"
       }
     }
   }
