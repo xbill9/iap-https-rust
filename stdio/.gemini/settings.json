@@ -1,15 +1,12 @@
 {
   "mcpServers": {
     "sysutils-stdio-rust": {
-      "command": "cargo",
-      "args": [
-        "run",
-        "--quiet",
-        "--release"
-      ],
-      "env": {
-        "RUST_LOG": "info,sysutils_stdio_rust=debug"
+        "command": "$HOME/iap-https-rust/stdio/target/release/sysutils-stdio-rust",
+        "args": ["--prebuilt","--stdio"],
+        "env": {
+          "RUST_LOG": "trace"
+        }
       }
     }
   }
-}
+
