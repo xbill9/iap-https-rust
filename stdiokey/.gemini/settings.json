@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "stdiokey": {
+      "command": "cargo",
+      "args": [
+        "run",
+        "--quiet",
+        "--release"
+      ],
+      "env": {
+        "RUST_LOG": "info,stdiokey=debug"
+      }
+    }
+  }
+}
