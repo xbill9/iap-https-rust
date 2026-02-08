@@ -16,6 +16,8 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
 *   **MCP SDK:** [rmcp](https://crates.io/crates/rmcp) (v0.14.0) - Uses `transport-io` (Stdio).
 *   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.x)
 *   **Async Runtime:** [Tokio](https://tokio.rs/)
+*   **Web Framework:** [Hyper](https://hyper.rs/) & [Hyper-util](https://crates.io/crates/hyper-util) (for Auth)
+*   **Auth:** [google-apikeys2](https://crates.io/crates/google-apikeys2) & [yup-oauth2](https://crates.io/crates/yup-oauth2)
 *   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stderr)
 
 ## Architecture
@@ -26,8 +28,12 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
         *   `local_system_info`: Comprehensive system report including system metrics.
         *   `disk_usage`: Disk usage information for all mounted disks.
     *   `collect_system_info`: Shared logic for system reports. Captures system metrics (CPU, Memory, OS version, Network interfaces).
+    *   **Security & Identity**:
+        *   Validates a provided `--key` argument against the project's "MCP API Key" fetched from Google Cloud API Keys service.
+        *   Uses Application Default Credentials (ADC) for fetching the valid key.
     *   `main`: 
         *   Handles `info` and `disk` CLI commands for direct output.
+        *   Performs API Key validation (exits if invalid).
         *   Initializes `SysUtils` service.
         *   Starts the MCP server using `transport::stdio`.
         *   Logs to stderr to avoid interfering with stdout JSON-RPC.
@@ -37,7 +43,9 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
 ### Initial Build & Run
 
 1.  **Build:** `cargo build`
-2.  **Run Server:** `cargo run` (Starts MCP server on Stdio)
+2.  **Run Server:** 
+    *   **Via Cargo:** `cargo run -- --key <YOUR_API_KEY>` (Starts MCP server on Stdio)
+    *   **Via Make:** `make run KEY=<YOUR_API_KEY>`
 3.  **CLI Commands:**
     *   `cargo run -- info`: Display system information report directly.
     *   `cargo run -- disk`: Display disk usage report directly.

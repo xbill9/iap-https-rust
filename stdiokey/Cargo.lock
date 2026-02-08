@@ -1248,25 +1248,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
-name = "stdiokey"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "google-apikeys2",
- "hyper-rustls",
- "hyper-util",
- "rmcp",
- "schemars 1.2.1",
- "serde",
- "serde_json",
- "sysinfo",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "yup-oauth2",
-]
-
-[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,6 +1293,25 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-io-kit",
  "windows",
+]
+
+[[package]]
+name = "sysutils-stdiokey-rust"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "google-apikeys2",
+ "hyper-rustls",
+ "hyper-util",
+ "rmcp",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "yup-oauth2",
 ]
 
 [[package]]
