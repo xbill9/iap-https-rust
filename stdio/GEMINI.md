@@ -25,7 +25,7 @@ This variant of `iap-https-rust` is refactored to use the **Stdio MCP transport*
     *   **MCP Tools**:
         *   `local_system_info`: Comprehensive system report including system metrics.
         *   `disk_usage`: Disk usage information for all mounted disks.
-    *   `collect_system_info`: Shared logic for system reports. Captures system metrics (CPU, Memory, OS version, Network interfaces).
+    *   `collect_system_info`: Shared logic for system reports. Captures system metrics (CPU, Memory, OS version, Network interfaces, MAC addresses).
     *   `main`: 
         *   Handles `info` and `disk` CLI commands for direct output.
         *   Initializes `SysUtils` service.
