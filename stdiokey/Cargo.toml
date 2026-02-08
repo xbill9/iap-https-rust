@@ -1,5 +1,5 @@
 [package]
-name = "stdiokey"
+name = "sysutils-stdiokey-rust"
 version = "0.2.0"
 edition = "2024"
 description = "System Utilities MCP Stdio transport in Rust"
