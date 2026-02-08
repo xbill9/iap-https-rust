@@ -27,4 +27,4 @@ steps:
 timeout: 800s
 
 substitutions:
-  _SERVICE_NAME: iap-https-rust
+  _SERVICE_NAME: sysutils-iap-rust
