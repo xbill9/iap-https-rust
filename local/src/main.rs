@@ -64,8 +64,55 @@ static DISK_USAGE_SCHEMA: LazyLock<Arc<serde_json::Map<String, serde_json::Value
         Arc::new(obj.clone())
     });
 
-static EXPECTED_API_KEY: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("MCP_API_KEY").ok());
+static EXPECTED_API_KEY: LazyLock<Option<String>> = LazyLock::new(|| {
+    // 1. Try environment variable
+    if let Ok(key) = std::env::var("MCP_API_KEY") {
+        return Some(key);
+    }
+
+    // 2. Try fetching from Google Cloud
+    // Note: Tracing might not be initialized yet if called from CLI 'info' command, so we use eprintln for visibility in that case or just accept silence.
+    let list_cmd = std::process::Command::new("gcloud")
+        .args([
+            "services",
+            "api-keys",
+            "list",
+            "--filter=displayName='MCP API Key'",
+            "--format=value(name)",
+            "--limit=1",
+        ])
+        .output();
+
+    if let Ok(output) = list_cmd {
+        if output.status.success() {
+            let key_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !key_name.is_empty() {
+                let get_key_cmd = std::process::Command::new("gcloud")
+                    .args([
+                        "services",
+                        "api-keys",
+                        "get-key-string",
+                        &key_name,
+                        "--format=value(keyString)",
+                    ])
+                    .output();
+
+                if let Ok(key_output) = get_key_cmd {
+                    if key_output.status.success() {
+                        let key_string = String::from_utf8_lossy(&key_output.stdout)
+                            .trim()
+                            .to_string();
+                        if !key_string.is_empty() {
+                            return Some(key_string);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+});
 
 #[derive(Clone)]
 struct SysUtils {

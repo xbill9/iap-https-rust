@@ -2,7 +2,7 @@
 
 # Variables
 PROJECT_ID := $(shell gcloud config get-value project)
-SERVICE_NAME := manual-https-rust
+SERVICE_NAME := sysutils-manual-rust
 REGION := us-central1
 
 .PHONY: all build run clean release test fmt clippy check docker-build deploy help

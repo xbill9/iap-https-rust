@@ -13,20 +13,21 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 ### Key Technologies
 
 *   **Language:** [Rust](https://www.rust-lang.org/) (Edition 2024)
-*   **MCP SDK:** [rmcp](https://crates.io/crates/rmcp) (v0.14.0)
+*   **MCP SDK:** [rmcp](https://crates.io/crates/rmcp) (v0.14.0) - Uses `transport-streamable-http-server`.
 *   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.x)
-*   **Async Runtime:** [Tokio](https://tokio.rs/)
-*   **Web Framework:** [Axum](https://github.com/tokio-rs/axum)
+*   **Async Runtime:** [Tokio](https://tokio.rs/) (v1.x)
+*   **Web Framework:** [Axum](https://github.com/tokio-rs/axum) (v0.8.x)
+*   **Serialization:** [Serde](https://serde.rs/) & [Schemars](https://crates.io/crates/schemars)
 *   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stdout)
 
 ## Architecture
 
 *   **`src/main.rs`**: Single entry point. 
     *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
-    *   `iap_system_info`: The primary MCP tool.
+    *   `sysutils_manual_rust`: The primary MCP tool.
     *   `collect_system_info`: Shared logic for both MCP tool and CLI `info` command.
     *   `iap_middleware`: Captures IAP JWT *and* validates the `x-goog-api-key` header against the `MCP_API_KEY` environment variable.
-    *   `main`: Initializes the `StreamableHttpService`, sets up Axum with a `/health` route and security middleware.
+    *   `main`: Initializes the `StreamableHttpService` with `LocalSessionManager`, sets up Axum with a `/health` route, and applies the security middleware.
 
 ## Getting Started
 

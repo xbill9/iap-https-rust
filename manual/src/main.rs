@@ -196,7 +196,7 @@ impl SysUtils {
         description = "Get a detailed system information report including kernel, cores, and memory usage.",
         input_schema = "SYSTEM_INFO_SCHEMA.clone()"
     )]
-    async fn iap_system_info(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
+    async fn sysutils_manual_rust(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
         collect_system_info()
     }
 }
@@ -360,10 +360,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_iap_system_info() {
+    async fn test_sysutils_manual_rust() {
         let sysutils = SysUtils::new();
         let report = sysutils
-            .iap_system_info(Parameters(IapSystemInfoRequest {}))
+            .sysutils_manual_rust(Parameters(IapSystemInfoRequest {}))
             .await;
         assert!(report.contains("System Information Report"));
         assert!(report.contains("CPU Information"));
