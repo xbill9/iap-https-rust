@@ -19,6 +19,10 @@ tokio = { version = "^1.46.0", features = ["macros", "rt-multi-thread", "signal"
 tracing = "^0.1.41"
 tracing-subscriber = { version = "^0.3.19", features = ["env-filter", "json"] }
 base64 = "0.22.1"
+google-apikeys2 = "7.0.0"
+yup-oauth2 = "12.1.2"
+hyper-util = "0.1.20"
+hyper-rustls = { version = "0.27.7", default-features = false, features = ["native-tokio", "http1", "http2", "tls12", "ring", "logging"] }
 
 [profile.release]
 opt-level = 3
@@ -26,3 +30,4 @@ lto = true
 strip = true  # Automatically strip symbols from the binary.
 codegen-units = 1
 panic = "abort"
+

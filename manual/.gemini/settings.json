@@ -1,7 +1,7 @@
 {
     "mcpServers": {
-    "manual-cloudrun-rust": {
-       "httpUrl": "https://manual-https-rust-1056842563084.us-central1.run.app/mcp",
+    "sysutils-manual-rust": {
+       "httpUrl": "https://sysutils-manual-rust-1056842563084.us-central1.run.app/mcp",
        "headers": {
          "X-Goog-Api-Key": "$MCP_API_KEY"
        }
