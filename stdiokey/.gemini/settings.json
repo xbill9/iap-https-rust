@@ -4,7 +4,8 @@
         "command": "$HOME/iap-https-rust/stdiokey/target/release/sysutils-stdiokey-rust",
         "args": ["--prebuilt","--stdio"],
         "env": {
-          "RUST_LOG": "trace"
+          "RUST_LOG": "trace",
+          "MCP_API_KEY": ""
         }
       }
     }

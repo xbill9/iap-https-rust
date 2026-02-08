@@ -286,16 +286,19 @@ async fn main() -> Result<()> {
         .init();
 
     // Key Verification Logic
-    let mut provided_key = None;
-    for i in 1..args.len() {
-        if args[i] == "--key" && i + 1 < args.len() {
-            provided_key = Some(args[i+1].clone());
-            break;
+    let mut provided_key = std::env::var("MCP_API_KEY").ok();
+
+    if provided_key.is_none() {
+        for i in 1..args.len() {
+            if args[i] == "--key" && i + 1 < args.len() {
+                provided_key = Some(args[i+1].clone());
+                break;
+            }
         }
     }
 
     if provided_key.is_none() {
-         tracing::error!("Authentication Required: Please provide the API Key using --key <KEY>");
+         tracing::error!("Authentication Required: Please provide the API Key using --key <KEY> or MCP_API_KEY environment variable");
          std::process::exit(1);
     }
 
