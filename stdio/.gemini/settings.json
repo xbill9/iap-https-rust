@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sysutils-stdio-rust": {
+      "command": "cargo",
+      "args": [
+        "run",
+        "--quiet"
+      ],
+      "env": {
+        "RUST_LOG": "info,sysutils_local_rust=debug"
+      }
+    }
+  }
+}
