@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "httpkey-python": {
+      "url": "http://127.0.0.1:8080/sse",
+       "headers": {
+         "X-Goog-Api-Key": "$MCP_API_KEY"
+       }
+    }
+  }
+}
