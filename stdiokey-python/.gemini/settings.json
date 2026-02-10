@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "stdiokey-python": {
+        "command": "python3",
+        "args": ["$HOME/iap-https-rust/stdiokey-python/main.py"],
+        "env": {
+          "MCP_API_KEY": "$MCP_API_KEY"
+        }
+      }
+    }
+  }
+
