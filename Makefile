@@ -1,77 +1,67 @@
 # Makefile for iap-https-rust workspace
 
-.PHONY: all build run clean test fmt clippy check help
+RUST_VARIANTS := iap manual local stdio stdiokey
+PYTHON_VARIANTS := local-python manual-python stdiokey-python
+ALL_VARIANTS := $(RUST_VARIANTS) $(PYTHON_VARIANTS)
+
+.PHONY: all build clean test fmt clippy check help $(ALL_VARIANTS)
 
 # The default target
 all: build
 
 # Build all variants
 build:
-	@echo "Building iap variant..."
-	@$(MAKE) -C iap build
-	@echo "Building manual variant..."
-	@$(MAKE) -C manual build
-	@echo "Building local variant..."
-	@$(MAKE) -C local build
-	@echo "Building stdio variant..."
-	@$(MAKE) -C stdio build
-	@echo "Building stdiokey variant..."
-	@$(MAKE) -C stdiokey build
+	@for dir in $(RUST_VARIANTS); do \
+		echo "Building $$dir variant..."; \
+		$(MAKE) -C $$dir build; \
+	done
+	@for dir in $(PYTHON_VARIANTS); do \
+		echo "Installing dependencies for $$dir variant..."; \
+		$(MAKE) -C $$dir install; \
+	done
 
 # Clean all variants
 clean:
 	@echo "Cleaning the projects..."
-	@$(MAKE) -C iap clean
-	@$(MAKE) -C manual clean
-	@$(MAKE) -C local clean
-	@$(MAKE) -C stdio clean
-	@$(MAKE) -C stdiokey clean
-	@$(MAKE) -C stdiokey-python clean
+	@for dir in $(ALL_VARIANTS); do \
+		$(MAKE) -C $$dir clean; \
+	done
 
 # Run tests for all
 test:
-	@echo "Testing iap variant..."
-	@$(MAKE) -C iap test
-	@echo "Testing manual variant..."
-	@$(MAKE) -C manual test
-	@echo "Testing local variant..."
-	@$(MAKE) -C local test
-	@echo "Testing stdio variant..."
-	@$(MAKE) -C stdio test
-	@echo "Testing stdiokey variant..."
-	@$(MAKE) -C stdiokey test
-	@echo "Testing stdiokey-python variant..."
-	@$(MAKE) -C stdiokey-python test
+	@for dir in $(ALL_VARIANTS); do \
+		echo "Testing $$dir variant..."; \
+		$(MAKE) -C $$dir test; \
+	done
 
 # Format the code
 fmt:
 	@echo "Formatting code..."
-	@$(MAKE) -C iap fmt
-	@$(MAKE) -C manual fmt
-	@$(MAKE) -C local fmt
-	@$(MAKE) -C stdio fmt
-	@$(MAKE) -C stdiokey fmt
-	@$(MAKE) -C stdiokey-python fmt
+	@for dir in $(ALL_VARIANTS); do \
+		$(MAKE) -C $$dir fmt; \
+	done
 
 # Lint the code
 clippy:
 	@echo "Linting code..."
-	@$(MAKE) -C iap clippy
-	@$(MAKE) -C manual clippy
-	@$(MAKE) -C local clippy
-	@$(MAKE) -C stdio clippy
-	@$(MAKE) -C stdiokey clippy
-	@echo "Linting stdiokey-python variant..."
-	@$(MAKE) -C stdiokey-python lint
+	@for dir in $(RUST_VARIANTS); do \
+		$(MAKE) -C $$dir clippy; \
+	done
+	@for dir in $(PYTHON_VARIANTS); do \
+		echo "Linting $$dir variant..."; \
+		$(MAKE) -C $$dir lint; \
+	done
 
 # Check the code
 check:
 	@echo "Checking the code..."
-	@$(MAKE) -C iap check
-	@$(MAKE) -C manual check
-	@$(MAKE) -C local check
-	@$(MAKE) -C stdio check
-	@$(MAKE) -C stdiokey check
+	@for dir in $(RUST_VARIANTS); do \
+		$(MAKE) -C $$dir check; \
+	done
+	@for dir in $(PYTHON_VARIANTS); do \
+		echo "Linting (checking) $$dir variant..."; \
+		$(MAKE) -C $$dir lint; \
+	done
 
 help:
 	@echo "Root Makefile for iap-https-rust"
@@ -80,11 +70,11 @@ help:
 	@echo "    make <target>"
 	@echo ""
 	@echo "Targets:"
-	@echo "    build        Build all variants (iap, manual, local, stdio, stdiokey)"
-	@echo "    clean        Clean all variants (including stdiokey-python)"
+	@echo "    build        Build Rust variants and install Python dependencies"
+	@echo "    clean        Clean all variants"
 	@echo "    test         Run tests for all variants"
-	@echo "    fmt          Check formatting for all"
-	@echo "    clippy       Lint all variants"
+	@echo "    fmt          Format code for all variants"
+	@echo "    clippy       Lint all variants (clippy for Rust, lint for Python)"
 	@echo "    check        Check all variants"
 	@echo ""
 	@echo "Note: To run or deploy, navigate to the specific directory."

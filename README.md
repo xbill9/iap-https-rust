@@ -1,52 +1,50 @@
 # iap-https-rust (v0.2.0)
 
-A Rust-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides system utility tools. This application runs over **streaming HTTP** and is optimized for deployment on Google Cloud Run.
+A multi-language [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server project that provides system utility tools. This repository features multiple variants implemented in **Rust** and **Python**, supporting both **Streaming HTTP (SSE)** and **Stdio** transports. It is optimized for both local development and deployment on Google Cloud Run with Identity-Aware Proxy (IAP) or API Key security.
 
 ## Project Structure
 
-This repository contains three variants of the MCP server:
+This repository is organized into several variants to suit different deployment and development needs:
 
-1.  **`iap/`**: The standard version designed for use with Google Cloud Identity-Aware Proxy (IAP). It relies on IAP to handle authentication and decodes the `x-goog-iap-jwt-assertion` header to provide identity context.
-2.  **`manual/`**: An enhanced version that adds a manual API key check and advanced tools. It automatically fetches an API key named "MCP API Key" from your Google Cloud project using Application Default Credentials (ADC). Optimized for Cloud Run deployment.
-3.  **`local/`**: Tailored for local development. It uses `gcloud` commands to fetch the API key and supports a subset of the advanced tools.
+### Rust Variants (`rmcp` based)
+1.  **`iap/`**: Standard version for Google Cloud Run with IAP. Decodes `x-goog-iap-jwt-assertion`.
+2.  **`manual/`**: Enhanced version for Cloud Run with API key check (ADC-fetched) and IAP.
+3.  **`local/`**: Tailored for local development over HTTP with `gcloud` API key fetching.
+4.  **`stdio/`**: Lightweight Stdio-based version for local use without extra security layers.
+5.  **`stdiokey/`**: Stdio-based version with API key validation (fetched via `gcloud` or ADC).
 
-## Features & Tools
+### Python Variants (`FastMCP` based)
+6.  **`local-python/`**: Python implementation of the local HTTP (SSE) variant with API key security.
+7.  **`manual-python/`**: Python implementation optimized for Cloud Run/Manual use (SSE) with API key security.
+8.  **`stdiokey-python/`**: Python implementation using Stdio transport with API key validation.
 
-| Feature / Tool | iap/ | manual/ | local/ |
-| :--- | :---: | :---: | :---: |
-| **IAP JWT Context** | ✅ | ✅ | ✅ |
-| **API Key Security** | ❌ | ✅ | ✅ |
-| **Auto Key Fetching** | ❌ | ✅ (ADC) | ✅ (gcloud) |
-| **`iap_system_info`** | ✅ | ❌ | ❌ |
-| **`sysutils_manual_rust`** | ❌ | ✅ | ❌ |
-| **`local_system_info`** | ❌ | ❌ | ✅ |
-| **`disk_usage`** | ❌ | ✅ | ✅ |
-| **`list_processes`** | ❌ | ✅ | ❌ |
+## Features & Comparison
 
-### Tool Descriptions
+| Variant | Language | Transport | Security | Key Fetching |
+| :--- | :--- | :--- | :--- | :--- |
+| **`iap`** | Rust | HTTP | IAP | N/A |
+| **`manual`** | Rust | HTTP | IAP + API Key | ADC |
+| **`local`** | Rust | HTTP | API Key | gcloud |
+| **`stdio`** | Rust | Stdio | None | N/A |
+| **`stdiokey`** | Rust | Stdio | API Key | gcloud / ADC |
+| **`local-python`** | Python | HTTP (SSE) | API Key | gcloud / ADC |
+| **`manual-python`** | Python | HTTP (SSE) | API Key | gcloud / ADC |
+| **`stdiokey-python`**| Python | Stdio | API Key | gcloud / ADC |
 
-*   **System Information**: Provides a detailed report of the host system.
-    *   **Data Collected**: IAP Context, Request Headers, System (Name, Kernel, OS), CPU (Cores), Memory (RAM, Swap), and Network Interfaces (manual/local only).
-*   **Disk Usage**: Reports disk usage for all mounted partitions (manual/local only).
-*   **Process List**: Lists the top 20 running processes by memory usage (manual only).
+## Tools Provided
 
-## Logging
-
-*   **Structured JSON**: All variants log in JSON format.
-*   **Destination**: `iap/` and `manual/` log to `stdout` (standard for Cloud Run), while `local/` logs to `stderr`.
+*   **System Information**: Detailed host report (CPU, Memory, OS, Network).
+*   **Disk Usage**: Reports usage for all mounted partitions.
+*   **Process List**: Lists top 20 processes by memory (available in `manual` variants).
 
 ## Getting Started
 
 ### Prerequisites
+*   **Rust**: Toolchain (Edition 2024)
+*   **Python**: Version 3.11+
+*   **Make**: For automated tasks
 
-*   [Rust Toolchain](https://www.rust-lang.org/tools/install) (Edition 2024)
-*   [Make](https://www.gnu.org/software/make/)
-
-### Build & Run
-
-Each variant has its own directory and `Makefile`.
-
-#### Manual Version (Recommended for Features)
+### Quick Start (Manual Rust)
 ```bash
 cd manual
 make build
@@ -54,30 +52,20 @@ make build
 make run
 ```
 
-### CLI Usage (Direct Reports)
-
-You can run tools directly from the command line:
-
+### Quick Start (Python)
 ```bash
-cargo run -- info       # System Info
-cargo run -- disk       # Disk Usage (manual/local)
-cargo run -- processes  # Process List (manual)
+cd local-python
+make install
+make run KEY=<YOUR_API_KEY>
 ```
 
-## Development
+## CLI Usage (Direct Reports)
 
-The root directory contains a `Makefile` that can be used to clean all sub-projects. Individual development tasks should be performed within the subdirectories.
+Most variants support direct CLI execution for quick reports:
+*   **Rust**: `cargo run -- info` or `cargo run -- disk`
+*   **Python**: `python3 main.py info` or `python3 main.py disk`
 
-*   **Format Code**: `make fmt`
-*   **Lint Code**: `make clippy`
-*   **Run Tests**: `make test`
+## Development & Deployment
 
-## Deployment
-
-`iap/` and `manual/` are containerized and ready for deployment to Google Cloud Run via Google Cloud Build.
-
-```bash
-cd iap # or cd manual
-make deploy
-```
+Each subdirectory contains its own `Makefile` for formatting (`make fmt`), linting (`make clippy` / `make lint`), and testing (`make test`). Deployment to Cloud Run is supported for `iap/` and `manual/` variants via `make deploy`.
 

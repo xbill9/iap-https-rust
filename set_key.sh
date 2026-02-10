@@ -67,9 +67,11 @@ if [[ -n "$MCP_API_KEY" ]]; then
     echo "MCP API Key retrieved and exported."
     
     echo ""
-    echo "To use with the 'manual' or 'local' variants, ensure this script was sourced:"
-    echo "source ./set_key.sh"
-    echo "cargo run --bin manual"
+    echo "This key can be used with all variants that support API key validation:"
+    echo "  - Rust: manual, local, stdiokey"
+    echo "  - Python: manual-python, local-python, stdiokey-python"
+    echo ""
+    echo "Ensure this script was sourced: source ./set_key.sh"
 else
     handle_error "Failed to retrieve MCP API Key string." || return 1
 fi

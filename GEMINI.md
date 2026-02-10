@@ -1,98 +1,62 @@
 # Gemini Workspace for `iap-https-rust` (v0.2.0)
 
-You are a Rust Developer working with Google Cloud.
-You should follow Rust Best practices.
-The recommended language level for Rust is 2024.
-
-This document provides a developer-focused overview of the `iap-https-rust` project, tailored for use with Gemini.
+You are a developer working on a multi-language MCP server project. This workspace encompasses both **Rust** (Edition 2024) and **Python** (3.11+) implementations.
 
 ## Project Overview
 
-`iap-https-rust` is a Model Context Protocol (MCP) server written in Rust. It interacts via **streaming HTTP** to provide system utility tools to MCP clients. It is optimized for serverless environments like Google Cloud Run and supports Google Cloud Identity-Aware Proxy (IAP).
+`iap-https-rust` (and its Python counterparts) is a suite of Model Context Protocol (MCP) servers providing system utility tools. It supports multiple transports (Streaming HTTP/SSE and Stdio) and various security models (IAP, API Key).
 
 ### Project Structure
 
-This repository is split into three variants:
-*   **`iap/`**: Standard implementation for IAP-protected Cloud Run services.
-*   **`manual/`**: Adds an optional `MCP_API_KEY` check (via `x-goog-api-key` header) for additional security. Optimized for Cloud Run.
-*   **`local/`**: API key support tailored for local development (no containerization).
+This repository is divided into several specialized variants:
+
+#### Rust Variants (`rmcp` v0.14+)
+*   **`iap/`**: Cloud Run + IAP. HTTP transport.
+*   **`manual/`**: Cloud Run + IAP + API Key (ADC). HTTP transport.
+*   **`local/`**: Local dev + API Key (gcloud). HTTP transport.
+*   **`stdio/`**: Basic Stdio transport. No security.
+*   **`stdiokey/`**: Stdio transport + API Key (gcloud/ADC).
+
+#### Python Variants (`FastMCP` based)
+*   **`local-python/`**: Local/Cloud SSE + API Key (gcloud/ADC).
+*   **`manual-python/`**: Cloud-ready SSE + API Key (gcloud/ADC).
+*   **`stdiokey-python/`**: Stdio transport + API Key (gcloud/ADC).
 
 ### Key Technologies
 
-*   **Language:** [Rust](https://www.rust-lang.org/) (Edition 2024)
-*   **MCP SDK:** [rmcp](https://crates.io/crates/rmcp) (v0.14.0) - Uses `transport-streamable-http-server`.
-*   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.x)
-*   **Async Runtime:** [Tokio](https://tokio.rs/)
-*   **Web Framework:** [Axum](https://github.com/tokio-rs/axum)
-*   **Serialization:** [Serde](https://serde.rs/) & [Schemars](https://crates.io/crates/schemars)
-*   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stdout)
+*   **Rust Stack**: `rmcp`, `tokio`, `axum`, `sysinfo`, `serde`, `tracing`.
+*   **Python Stack**: `mcp`, `starlette` (SSE), `uvicorn`, `psutil`, `pydantic`.
+*   **Security**: Google Cloud IAP (JWT), Google Cloud API Keys (ADC or `gcloud` CLI).
 
-## Architecture
+## Architecture & Security
 
-Each variant (`iap/`, `manual/`, and `local/`) has its own `src/main.rs`:
-*   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
-*   **MCP Tools**:
-    *   `iap/`: `iap_system_info`
-    *   `manual/`: `sysutils_manual_rust`, `disk_usage`, `list_processes`
-    *   `local/`: `local_system_info`, `disk_usage`
-*   `collect_system_info`: Shared logic for system reports. Includes network interface info in `manual` and `local`.
-*   **Security & Identity**:
-    *   `iap_middleware`: Captures IAP JWT headers and validates API keys (if applicable).
-    *   **API Key Fetching**: 
-        *   `manual/`: Uses `google-apikeys2` and ADC to fetch "MCP API Key" programmatically.
-        *   `local/`: Uses `gcloud` CLI to fetch "MCP API Key" for development.
-*   `main`: Initializes the `StreamableHttpService`, sets up Axum with a `/health` route, and listens on `PORT`.
+### Security Mechanisms
+*   **IAP Middleware**: (Rust variants) Extracts identity from `x-goog-iap-jwt-assertion`.
+*   **API Key Validation**: 
+    *   **Manual/Cloud**: Uses `google-apikeys2` (Rust) or `google-api-python-client` to fetch the expected "MCP API Key" from project `1056842563084` via ADC.
+    *   **Local**: Uses `gcloud services api-keys` CLI to fetch the key for developer convenience.
+*   **Task-Local Context**: Rust variants use `tokio::task_local` to store request context and headers.
 
-## Getting Started
-
-Each subdirectory has its own `Makefile`.
-
-### Environment Setup
-
-*   `PORT`: Port for the HTTP server (default: 8080).
-*   `RUST_LOG`: Logging level (default: `info,iap_https_rust=debug`, `info,manual_https_rust=debug`, or `info,sysutils_local_rust=debug`).
-*   `MCP_API_KEY`: (Manual/Local variants only) Required API key for the `x-goog-api-key` header.
-
-### Initial Build & Run
-
-```bash
-cd iap # or cd manual or cd local
-make build
-make run
-```
-
-### CLI Info command
-```bash
-cargo run -- info
-```
+### Transport Details
+*   **Streaming HTTP**: Rust uses `transport-streamable-http-server`.
+*   **SSE**: Python uses `mcp.run(transport="sse")`.
+*   **Stdio**: Standard MCP JSON-RPC over stdin/stdout.
 
 ## Development Workflow
 
-### Code Quality
-*   **Formatting:** `make fmt`
-*   **Linting:** `make clippy`
-*   **Checking:** `make check`
+### Shared Commands
+Each subdirectory has a `Makefile` with standard targets:
+*   **Rust**: `make fmt`, `make clippy`, `make test`, `make build`.
+*   **Python**: `make fmt` (ruff), `make lint` (ruff), `make test` (unittest).
 
-### Testing
-```bash
-make test
-```
-Tests include schema generation verification and basic tool functionality checks.
-
-## Deployment
-
-Deployment is handled via `cloudbuild.yaml` in the `iap/` and `manual/` directories. Note that the `local/` variant is not intended for Cloud Run deployment.
-
-```bash
-cd iap # or cd manual
-make deploy
-```
+### Environment Variables
+*   `PORT`: Port for HTTP/SSE servers (default: 8080).
+*   `MCP_API_KEY`: Manual override for API key validation.
+*   `GOOGLE_CLOUD_PROJECT`: Project ID for API key fetching.
 
 ## Interacting with Gemini
 
-You can use Gemini to help you with various tasks in this project. Relevant examples:
-
-*   "Add a new tool to `SysUtils` in `iap/src/main.rs` that checks disk usage."
-*   "Explain the difference between the `iap`, `manual`, and `local` variants."
-*   "How does the `iap_middleware` in `local/src/main.rs` handle the API key check?"
-*   "Modify `collect_system_info` in all variants to include network interface information."
+*   "Add a disk usage tool to the Stdio Rust variant in `stdiokey/src/main.rs`."
+*   "Refactor the Python middleware in `local-python/main.py` to support custom error messages."
+*   "Explain the API key fetching logic in the `manual` variant vs the `local` variant."
+*   "How do I deploy the Python manual variant to Cloud Run?"
