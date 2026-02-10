@@ -1,0 +1,19 @@
+[project]
+name = "httpkey-python"
+version = "0.5.0"
+description = "System Utilities with API Key MCP HTTP transport in Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.2.1",
+    "psutil>=6.1.1",
+    "google-api-python-client>=2.160.0",
+    "google-auth-oauthlib>=1.2.1",
+    "pydantic>=2.10.6",
+    "uvicorn>=0.34.0",
+    "starlette>=0.45.2",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
