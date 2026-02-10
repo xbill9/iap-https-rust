@@ -14,12 +14,12 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 
 *   **Language:** [Rust](https://www.rust-lang.org/) (Edition 2024)
 *   **MCP SDK:** [rmcp](https://crates.io/crates/rmcp) (v0.14.0) - Uses `transport-streamable-http-server`.
-*   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.x)
+*   **System Info:** [sysinfo](https://crates.io/crates/sysinfo) (v0.37.2)
 *   **Async Runtime:** [Tokio](https://tokio.rs/) (v1.x)
 *   **Web Framework:** [Axum](https://github.com/tokio-rs/axum) (v0.8.x)
 *   **Security:** `google-apikeys2`, `yup-oauth2` (for ADC-based API key fetching)
 *   **Serialization:** [Serde](https://serde.rs/) & [Schemars](https://crates.io/crates/schemars)
-*   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stdout)
+*   **Logging:** [Tracing](https://crates.io/crates/tracing) (JSON format to stderr, sent to Cloud Logging)
 
 ## Architecture
 
@@ -29,7 +29,7 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
         *   `sysutils_manual_rust`: Detailed system info (kernel, CPU, memory, network).
         *   `disk_usage`: Disk usage information for all mounted disks.
         *   `list_processes`: Top 20 running processes by memory usage.
-    *   `fetch_mcp_api_key`: Automatically fetches the API key named "MCP API Key" from the Google Cloud project using ADC.
+    *   `fetch_mcp_api_key`: Automatically fetches the API key named "MCP API Key" from the Google Cloud project `1056842563084` using ADC.
     *   `iap_middleware`: Captures IAP JWT *and* validates the `x-goog-api-key` header against the `MCP_API_KEY` environment variable (or the automatically fetched key).
     *   `main`: Initializes the `StreamableHttpService` with `LocalSessionManager`, sets up Axum with a `/health` route, and applies the security middleware.
 
@@ -39,7 +39,7 @@ This variant of `iap-https-rust` adds an explicit API key check to the MCP serve
 
 *   `PORT`: Port for the HTTP server (default: 8080).
 *   `RUST_LOG`: Logging level (default: `info,manual_https_rust=debug`).
-*   `MCP_API_KEY`: Optional if "MCP API Key" exists in Google Cloud project; otherwise **Required** for API key validation.
+*   `MCP_API_KEY`: Optional if "MCP API Key" exists in Google Cloud project `1056842563084`; otherwise **Required** for API key validation.
 
 ### Initial Build & Run
 
