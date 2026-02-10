@@ -24,19 +24,24 @@ This variant of `iap-https-rust` is optimized for local development. It supports
 *   **`src/main.rs`**: Single entry point. 
     *   `SysUtils` struct: Implements `ServerHandler` and `tool_router`.
     *   **MCP Tools**:
-        *   `local_system_info`: Comprehensive system report including IAP context and system metrics.
+        *   `local_system_info`: Comprehensive system report including IAP context, HTTP headers, system metrics, and any local IAP configuration files.
         *   `disk_usage`: Disk usage information for all mounted disks.
     *   `collect_system_info`: Shared logic for system reports. Captures:
         *   IAP JWT Claims (from `x-goog-iap-jwt-assertion`)
         *   HTTP Request Headers
-        *   System metrics (CPU, Memory, OS version, Network interfaces)
+        *   IAP Settings: Reads local `.yaml` config files if present.
+        *   System metrics: CPU, Memory, OS version, Network interfaces (including MAC and TX/RX stats).
+    *   `EXPECTED_API_KEY`: A `OnceLock` initialized at startup by fetching an API key from:
+        1.  `gcloud` CLI (filtered for display name "MCP API Key", project `1056842563084`).
+        2.  `google-apikeys2` Rust library fallback (using ADC).
+        3.  `MCP_API_KEY` environment variable.
     *   `iap_middleware`: 
-        *   Validates `x-goog-api-key` header against `MCP_API_KEY` environment variable (if set).
+        *   Validates API key against `EXPECTED_API_KEY` (if set) by checking both `x-goog-api-key` header and `key` query parameter.
         *   Decodes IAP JWT assertions.
         *   Populates `tokio::task_local` storage for `IAP_CONTEXT` and `REQUEST_HEADERS`.
     *   `main`: 
-        *   Handles `info` CLI command.
-        *   Initializes `StreamableHttpService`.
+        *   Handles CLI commands: `info` (system report + API key verification) and `disk` (disk usage report).
+        *   Initializes `StreamableHttpService` using `LocalSessionManager`.
         *   Sets up Axum with a `/health` route and security middleware.
         *   Listens on `PORT` (default 8080).
 
@@ -46,12 +51,12 @@ This variant of `iap-https-rust` is optimized for local development. It supports
 
 *   `PORT`: Port for the HTTP server (default: 8080).
 *   `RUST_LOG`: Logging level (default: `info,sysutils_local_rust=debug`).
-*   `MCP_API_KEY`: (Optional) Required API key for the `x-goog-api-key` header.
+*   `MCP_API_KEY`: (Optional) API key for `x-goog-api-key`. Can be auto-fetched if `gcloud` is configured.
 
 ### Initial Build & Run
 
 1.  **Build:** `cargo build`
-2.  **Run Server:** `MCP_API_KEY=my-key make run`
+2.  **Run Server:** `make run`
 3.  **CLI Commands:**
     *   `cargo run -- info`: Display system information report.
     *   `cargo run -- disk`: Display disk usage report.

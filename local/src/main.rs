@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rmcp::{
     handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
@@ -12,7 +12,13 @@ use serde_json::Value;
 use sysinfo::System;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, OnceLock};
+use std::fmt::Write;
+
+// Google Cloud Dependencies
+use google_apikeys2::ApiKeysService;
+use yup_oauth2::authenticator::ApplicationDefaultCredentialsTypes;
+use yup_oauth2::ApplicationDefaultCredentialsAuthenticator;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct IapSystemInfoRequest {}
@@ -64,80 +70,168 @@ static DISK_USAGE_SCHEMA: LazyLock<Arc<serde_json::Map<String, serde_json::Value
         Arc::new(obj.clone())
     });
 
-static EXPECTED_API_KEY: LazyLock<Option<String>> = LazyLock::new(|| {
-    // 1. Try environment variable
-    if let Ok(key) = std::env::var("MCP_API_KEY") {
-        return Some(key);
+static EXPECTED_API_KEY: OnceLock<Option<String>> = OnceLock::new();
+
+async fn fetch_mcp_api_key(project_id: &str) -> Result<String> {
+    tracing::info!("Fetching MCP API Key for project: {}", project_id);
+
+    // Try gcloud first for local development, it's more reliable with User ADC
+    match fetch_mcp_api_key_gcloud(project_id).await {
+        Ok(key) => {
+            tracing::info!("Successfully fetched API key via gcloud");
+            return Ok(key);
+        }
+        Err(e) => {
+            tracing::debug!("gcloud fetch failed (expected if gcloud not installed): {}", e);
+        }
     }
 
-    // 2. Try fetching from Google Cloud
-    // Note: Tracing might not be initialized yet if called from CLI 'info' command, so we use eprintln for visibility in that case or just accept silence.
-    let list_cmd = std::process::Command::new("gcloud")
+    // Fallback to library-based approach (works in Cloud Run/GCE with Service Accounts)
+    fetch_mcp_api_key_library(project_id).await
+}
+
+async fn fetch_mcp_api_key_gcloud(project_id: &str) -> Result<String> {
+    let output = tokio::process::Command::new("gcloud")
         .args([
             "services",
             "api-keys",
             "list",
+            &format!("--project={}", project_id),
             "--filter=displayName='MCP API Key'",
             "--format=value(name)",
-            "--limit=1",
         ])
-        .output();
+        .output()
+        .await
+        .context("Failed to execute gcloud command")?;
 
-    if let Ok(output) = list_cmd {
-        if output.status.success() {
-            let key_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !key_name.is_empty() {
-                let get_key_cmd = std::process::Command::new("gcloud")
-                    .args([
-                        "services",
-                        "api-keys",
-                        "get-key-string",
-                        &key_name,
-                        "--format=value(keyString)",
-                    ])
-                    .output();
-
-                if let Ok(key_output) = get_key_cmd {
-                    if key_output.status.success() {
-                        let key_string = String::from_utf8_lossy(&key_output.stdout)
-                            .trim()
-                            .to_string();
-                        if !key_string.is_empty() {
-                            return Some(key_string);
-                        }
-                    }
-                }
-            }
-        }
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "gcloud list failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
 
-    None
-});
+    let key_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if key_name.is_empty() {
+        return Err(anyhow::anyhow!("MCP API Key not found via gcloud"));
+    }
+
+    let output = tokio::process::Command::new("gcloud")
+        .args([
+            "services",
+            "api-keys",
+            "get-key-string",
+            &key_name,
+            &format!("--project={}", project_id),
+            "--format=value(keyString)",
+        ])
+        .output()
+        .await
+        .context("Failed to execute gcloud get-key-string")?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "gcloud get-key-string failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn fetch_mcp_api_key_library(project_id: &str) -> Result<String> {
+    // 1. Create the API Client first (so we can use it for auth)
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+        .build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_native_roots()
+                .unwrap()
+                .https_or_http()
+                .enable_http1()
+                .build(),
+        );
+
+    // 2. Authenticate using Application Default Credentials
+    let opts = yup_oauth2::ApplicationDefaultCredentialsFlowOpts::default();
+    let auth_builder = ApplicationDefaultCredentialsAuthenticator::builder(opts).await;
+
+    let auth: yup_oauth2::authenticator::Authenticator<_> = match auth_builder {
+        ApplicationDefaultCredentialsTypes::InstanceMetadata(builder) => builder
+            .build()
+            .await
+            .context("Failed to build InstanceMetadata authenticator")?,
+        ApplicationDefaultCredentialsTypes::ServiceAccount(builder) => builder
+            .build()
+            .await
+            .context("Failed to build ServiceAccount authenticator")?,
+    };
+
+    let hub = ApiKeysService::new(client, auth);
+
+    // 3. List keys to find the one named "MCP API Key"
+    let parent = format!("projects/{}/locations/global", project_id);
+
+    let response = hub
+        .projects()
+        .locations_keys_list(&parent)
+        .doit()
+        .await
+        .context("Failed to list API keys")?;
+
+    let keys = response.1.keys.context("No keys found in project")?;
+
+    let target_key = keys
+        .into_iter()
+        .find(|k| k.display_name.as_deref() == Some("MCP API Key"))
+        .context("MCP API Key not found")?;
+
+    let key_name = target_key.name.context("Key has no name")?;
+    tracing::info!("Found MCP API Key resource: {}", key_name);
+
+    // 4. Get the key string (the secret)
+    let response = hub
+        .projects()
+        .locations_keys_get_key_string(&key_name)
+        .doit()
+        .await
+        .context("Failed to get key string")?;
+
+    let key_string = response
+        .1
+        .key_string
+        .context("Response contained no key string")?;
+
+    Ok(key_string)
+}
 
 #[derive(Clone)]
 struct SysUtils {
     tool_router: ToolRouter<Self>,
 }
 
-fn collect_system_info() -> String {
+fn collect_system_info(api_status: Option<&str>) -> String {
     let mut sys = System::new_all();
     sys.refresh_all();
 
     let mut report = String::new();
 
-    report.push_str("System Information Report\n");
-    report.push_str("=========================\n\n");
+    let _ = writeln!(report, "System Information Report");
+    let _ = writeln!(report, "=========================\n");
+
+    if let Some(status) = api_status {
+        let _ = writeln!(report, "{}", status);
+    }
 
     // IAP Information
-    report.push_str("IAP Context & Identity\n");
-    report.push_str("----------------------\n");
-    report.push_str("Header Source:    x-goog-iap-jwt-assertion\n");
-    let api_key_status = if EXPECTED_API_KEY.is_some() {
+    let _ = writeln!(report, "IAP Context & Identity");
+    let _ = writeln!(report, "----------------------");
+    let _ = writeln!(report, "Header Source:    x-goog-iap-jwt-assertion");
+    let api_key_presence = if EXPECTED_API_KEY.get().and_then(|k| k.as_ref()).is_some() {
         "Enabled (MCP_API_KEY set)"
     } else {
         "Disabled"
     };
-    report.push_str(&format!("API Key Security: {}\n", api_key_status));
+    let _ = writeln!(report, "API Key Security: {}", api_key_presence);
 
     let iap_ctx = IAP_CONTEXT.try_with(|ctx| ctx.clone()).ok().flatten();
     if let Some(ctx) = iap_ctx {
@@ -149,35 +243,37 @@ fn collect_system_info() -> String {
                     Value::Bool(b) => b.to_string(),
                     _ => value.to_string(),
                 };
-                report.push_str(&format!("{:<18}: {}\n", key, val_str));
+                let _ = writeln!(report, "{:<18}: {}", key, val_str);
             }
         } else {
-            report.push_str(&format!("Payload:          {}\n", ctx.payload));
+            let _ = writeln!(report, "Payload:          {}", ctx.payload);
         }
     } else {
-        report.push_str(
-            "Status:           No IAP JWT found (Expected in production Cloud Run environment)\n",
+        let _ = writeln!(
+            report,
+            "Status:           No IAP JWT found (Expected in production Cloud Run environment)"
         );
     }
     report.push('\n');
 
     // Request Headers
-    report.push_str("HTTP Request Headers\n");
-    report.push_str("--------------------\n");
+    let _ = writeln!(report, "HTTP Request Headers");
+    let _ = writeln!(report, "--------------------");
     let headers = REQUEST_HEADERS.try_with(|h| h.clone()).ok();
     if let Some(h) = headers {
         for (name, value) in h {
-            report.push_str(&format!("{:<18}: {}\n", name, value));
+            let _ = writeln!(report, "{:<18}: {}", name, value);
         }
     } else {
-        report.push_str(
-            "Status:           No request headers captured (CLI mode or capture error)\n",
+        let _ = writeln!(
+            report,
+            "Status:           No request headers captured (CLI mode or capture error)"
         );
     }
     report.push('\n');
 
-    report.push_str("IAP Setup Configuration\n");
-    report.push_str("-----------------------\n");
+    let _ = writeln!(report, "IAP Setup Configuration");
+    let _ = writeln!(report, "-----------------------");
     let mut found_config = false;
     for file in &[
         "iap_settings.yaml",
@@ -186,7 +282,7 @@ fn collect_system_info() -> String {
     ] {
         if let Ok(content) = std::fs::read_to_string(file) {
             found_config = true;
-            report.push_str(&format!("[{}]\n", file));
+            let _ = writeln!(report, "[{}]", file);
             report.push_str(&content);
             if !content.ends_with('\n') {
                 report.push('\n');
@@ -194,69 +290,154 @@ fn collect_system_info() -> String {
         }
     }
     if !found_config {
-        report
-            .push_str("Status:           No IAP configuration files found in current directory.\n");
+        let _ = writeln!(
+            report,
+            "Status:           No IAP configuration files found in current directory."
+        );
     }
     report.push('\n');
 
     // System name and kernel
-    report.push_str("System Information\n");
-    report.push_str("------------------\n");
-    report.push_str(&format!(
-        "System Name:      {}\n",
+    let _ = writeln!(report, "System Information");
+    let _ = writeln!(report, "------------------");
+    let _ = writeln!(
+        report,
+        "System Name:      {}",
         System::name().unwrap_or_else(|| "<unknown>".to_string())
-    ));
-    report.push_str(&format!(
-        "Kernel Version:   {}\n",
+    );
+    let _ = writeln!(
+        report,
+        "Kernel Version:   {}",
         System::kernel_version().unwrap_or_else(|| "<unknown>".to_string())
-    ));
-    report.push_str(&format!(
-        "OS Version:       {}\n",
+    );
+    let _ = writeln!(
+        report,
+        "OS Version:       {}",
         System::os_version().unwrap_or_else(|| "<unknown>".to_string())
-    ));
-    report.push_str(&format!(
-        "Host Name:        {}\n",
+    );
+    let _ = writeln!(
+        report,
+        "Host Name:        {}",
         System::host_name().unwrap_or_else(|| "<unknown>".to_string())
-    ));
+    );
 
-    report.push_str("\nCPU Information\n");
-    report.push_str("---------------\n");
-    report.push_str(&format!("Number of Cores:  {}\n", sys.cpus().len()));
+    let _ = writeln!(report, "\nCPU Information");
+    let _ = writeln!(report, "---------------");
+    let _ = writeln!(report, "Number of Cores:  {}", sys.cpus().len());
 
-    report.push_str("\nMemory Information\n");
-    report.push_str("------------------\n");
-    report.push_str(&format!(
-        "Total Memory:     {} MB\n",
+    let _ = writeln!(report, "\nMemory Information");
+    let _ = writeln!(report, "------------------");
+    let _ = writeln!(
+        report,
+        "Total Memory:     {} MB",
         sys.total_memory() / 1024 / 1024
-    ));
-    report.push_str(&format!(
-        "Used Memory:      {} MB\n",
+    );
+    let _ = writeln!(
+        report,
+        "Used Memory:      {} MB",
         sys.used_memory() / 1024 / 1024
-    ));
-    report.push_str(&format!(
-        "Total Swap:       {} MB\n",
+    );
+    let _ = writeln!(
+        report,
+        "Total Swap:       {} MB",
         sys.total_swap() / 1024 / 1024
-    ));
-    report.push_str(&format!(
-        "Used Swap:        {} MB\n",
+    );
+    let _ = writeln!(
+        report,
+        "Used Swap:        {} MB",
         sys.used_swap() / 1024 / 1024
-    ));
+    );
 
-    report.push_str("\nNetwork Interfaces\n");
-    report.push_str("------------------\n");
+    let _ = writeln!(report, "\nNetwork Interfaces");
+    let _ = writeln!(report, "------------------");
     let networks = sysinfo::Networks::new_with_refreshed_list();
     for (interface_name, network) in &networks {
-        report.push_str(&format!(
-            "{:<18}: RX: {:>10} bytes, TX: {:>10} bytes (MAC: {})\n",
+        let _ = writeln!(
+            report,
+            "{:<18}: RX: {:>10} bytes, TX: {:>10} bytes (MAC: {})",
             interface_name,
             network.total_received(),
             network.total_transmitted(),
             network.mac_address()
-        ));
+        );
     }
 
     report
 }
+
+async fn check_api_key_status(args: &[String]) -> (String, bool) {
+    let mut status = String::new();
+    let mut success = true;
+    let _ = writeln!(status, "MCP API Key Status");
+    let _ = writeln!(status, "------------------");
+
+    let mut provided_key = std::env::var("MCP_API_KEY").ok();
+    if provided_key.is_none() {
+        for i in 1..args.len() {
+            if args[i] == "--key" && i + 1 < args.len() {
+                provided_key = Some(args[i + 1].clone());
+                break;
+            }
+        }
+    }
+
+    if let Some(key) = provided_key {
+        let _ = writeln!(status, "Provided Key:     [FOUND]");
+        // Fetch cloud key
+        let project_id = "1056842563084";
+        match fetch_mcp_api_key(project_id).await {
+            Ok(expected_key) => {
+                if key == expected_key {
+                    let _ = writeln!(status, "Cloud Match:      [MATCHED]");
+                } else {
+                    let _ = writeln!(status, "Cloud Match:      [MISMATCH]");
+                    success = false;
+                }
+            }
+            Err(e) => {
+                let _ = writeln!(status, "Cloud Match:      [ERROR: {:?}]", e);
+                success = false;
+            }
+        }
+    } else {
+        let _ = writeln!(status, "Provided Key:     [NOT FOUND]");
+        success = false;
+    }
+    status.push('\n');
+    (status, success)
+}
+
+fn collect_disk_usage() -> String {
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+
+    let mut report = String::new();
+    let _ = writeln!(report, "Disk Usage Report");
+    let _ = writeln!(report, "=================\n");
+
+    for disk in &disks {
+        let total = disk.total_space();
+        let available = disk.available_space();
+        let used = total - available;
+        let usage_pct = if total > 0 {
+            (used as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let _ = writeln!(
+            report,
+            "{:<20} {:<10} {:>10} / {:>10} MB used ({:.1}%)",
+            disk.mount_point().to_string_lossy(),
+            disk.file_system().to_string_lossy(),
+            used / 1024 / 1024,
+            total / 1024 / 1024,
+            usage_pct
+        );
+    }
+
+    report
+}
+
 
 #[tool_router]
 impl SysUtils {
@@ -271,7 +452,7 @@ impl SysUtils {
         input_schema = "SYSTEM_INFO_SCHEMA.clone()"
     )]
     async fn local_system_info(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
-        collect_system_info()
+        collect_system_info(Some("Authentication:   [VERIFIED] (Running as MCP Server)\n"))
     }
 
     #[tool(
@@ -279,33 +460,7 @@ impl SysUtils {
         input_schema = "DISK_USAGE_SCHEMA.clone()"
     )]
     async fn disk_usage(&self, _params: Parameters<DiskUsageRequest>) -> String {
-        let disks = sysinfo::Disks::new_with_refreshed_list();
-
-        let mut report = String::new();
-        report.push_str("Disk Usage Report\n");
-        report.push_str("=================\n\n");
-
-        for disk in &disks {
-            let total = disk.total_space();
-            let available = disk.available_space();
-            let used = total - available;
-            let usage_pct = if total > 0 {
-                (used as f64 / total as f64) * 100.0
-            } else {
-                0.0
-            };
-
-            report.push_str(&format!(
-                "{:<20} {:<10} {:>10} / {:>10} MB used ({:.1}%)\n",
-                disk.mount_point().to_string_lossy(),
-                disk.file_system().to_string_lossy(),
-                used / 1024 / 1024,
-                total / 1024 / 1024,
-                usage_pct
-            ));
-        }
-
-        report
+        collect_disk_usage()
     }
 }
 
@@ -328,17 +483,23 @@ async fn iap_middleware(
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
 
-    if let Some(expected_key) = &*EXPECTED_API_KEY {
+    if let Some(expected_key) = EXPECTED_API_KEY.get().and_then(|k| k.as_ref()) {
         let api_key_header = request
             .headers()
             .get("x-goog-api-key")
             .and_then(|h| h.to_str().ok());
 
-        if api_key_header != Some(expected_key) {
-            tracing::warn!("Unauthorized request: invalid or missing X-Goog-Api-Key");
+        let api_key_query = request.uri().query().and_then(|q| {
+            q.split('&')
+                .find(|p| p.starts_with("key="))
+                .and_then(|p| p.get(4..))
+        });
+
+        if api_key_header != Some(expected_key) && api_key_query != Some(expected_key) {
+            tracing::warn!("Unauthorized request: invalid or missing API Key (checked header and ?key=)");
             return (axum::http::StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
         }
-        tracing::debug!("X-Goog-Api-Key verified successfully");
+        tracing::debug!("API Key verified successfully");
     }
 
     let mut headers = Vec::new();
@@ -383,19 +544,6 @@ async fn iap_middleware(
 async fn main() -> Result<()> {
     // Check for CLI arguments
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 {
-        if args[1] == "info" {
-            println!("{}", collect_system_info());
-            return Ok(());
-        } else if args[1] == "disk" {
-            let sysutils = SysUtils::new();
-            println!(
-                "{}",
-                sysutils.disk_usage(Parameters(DiskUsageRequest {})).await
-            );
-            return Ok(());
-        }
-    }
 
     // Initialize tracing subscriber for logging
     tracing_subscriber::registry()
@@ -409,6 +557,36 @@ async fn main() -> Result<()> {
                 .json(),
         )
         .init();
+
+    if args.iter().any(|arg| arg == "info") {
+        let (api_status, success) = check_api_key_status(&args).await;
+        if !success {
+            eprintln!("{}", api_status);
+            eprintln!("Error: MCP_API_KEY is incorrect or missing.");
+            std::process::exit(1);
+        }
+        println!("{}", collect_system_info(Some(&api_status)));
+        return Ok(());
+    } else if args.iter().any(|arg| arg == "disk") {
+        println!("{}", collect_disk_usage());
+        return Ok(());
+    }
+
+    // Initialize EXPECTED_API_KEY for the server
+    let project_id = "1056842563084";
+    let cloud_key = match fetch_mcp_api_key(project_id).await {
+        Ok(key) => {
+            tracing::info!("Successfully fetched MCP API Key from Cloud");
+            Some(key)
+        }
+        Err(e) => {
+            tracing::warn!("Failed to fetch MCP API Key from Cloud: {:?}. Checking environment variable.", e);
+            std::env::var("MCP_API_KEY").ok()
+        }
+    };
+
+    let cloud_key = cloud_key.context("MCP_API_KEY not found in Cloud or environment. Server requires an API key.")?;
+    EXPECTED_API_KEY.set(Some(cloud_key)).ok();
 
     let service_factory = || Ok(SysUtils::new());
     let session_manager = LocalSessionManager::default();
@@ -533,7 +711,7 @@ mod tests {
         let report = REQUEST_HEADERS
             .scope(
                 headers,
-                IAP_CONTEXT.scope(Some(ctx), async { collect_system_info() }),
+                IAP_CONTEXT.scope(Some(ctx), async { collect_system_info(None) }),
             )
             .await;
 

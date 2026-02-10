@@ -5,7 +5,7 @@ PROJECT_ID := $(shell gcloud config get-value project)
 SERVICE_NAME := sysutils-local-rust
 REGION := us-central1
 
-.PHONY: all build run clean release test fmt clippy check docker-build deploy help
+.PHONY: all build run clean release test fmt clippy check docker-build deploy help info disk
 
 # The default target
 all: build
@@ -14,10 +14,25 @@ all: build
 build:
 	@echo "Building the Rust project..."
 	@cargo build
+
 # Run the project
 run:
 	@echo "Running the Rust project..."
 	@cargo run --release
+
+# Run the info command
+info:
+	@if [ -z "$(MCP_API_KEY)" ]; then \
+		echo "Error: MCP_API_KEY environment variable is not set."; \
+		echo "Please set it before running 'make info', e.g.:"; \
+		echo "  export MCP_API_KEY=\$$(gcloud services api-keys get-key-string ...)"; \
+		exit 1; \
+	fi
+	@cargo run -- info
+
+# Run the disk command
+disk:
+	@cargo run -- disk
 
 # Clean the project
 clean:
