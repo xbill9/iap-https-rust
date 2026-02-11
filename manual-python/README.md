@@ -104,10 +104,23 @@ export MCP_API_KEY=your-secret-key
 python3 main.py
 ```
 
-For production-like runs where the key is expected to be fetched automatically from the environment:
+For production-like runs where the key is expected to be fetched automatically from the environment or Google Cloud:
 ```bash
 make release
 ```
+
+## Deployment
+
+This project includes a `Dockerfile` and `cloudbuild.yaml` for easy deployment to **Google Cloud Run**.
+
+1.  **Build and Deploy:**
+    ```bash
+    make deploy
+    ```
+    This command uses Google Cloud Build to build the container image and deploy it to Cloud Run.
+
+2.  **Service Configuration:**
+    The default service name is `sysutils-manual-python` (as defined in `cloudbuild.yaml`).
 
 ## Development
 

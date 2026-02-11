@@ -57,3 +57,14 @@ This project is a Model Context Protocol (MCP) server written in Python. It prov
 *   **Formatting:** `make fmt` (runs `ruff format`)
 *   **Linting:** `make lint` (runs `ruff check`)
 *   **Testing:** `make test` (runs `unittest`)
+
+## Deployment
+
+The project is configured for deployment to **Google Cloud Run** via **Cloud Build**.
+
+*   **Dockerfile**: Uses `python:3.12-slim`, installs the package, and exposes port 8080.
+*   **cloudbuild.yaml**:
+    *   Builds the Docker image and pushes it to GCR.
+    *   Deploys to Cloud Run in `us-central1`.
+    *   Sets environment variables for Vertex AI and Project ID.
+*   **Command**: `make deploy`

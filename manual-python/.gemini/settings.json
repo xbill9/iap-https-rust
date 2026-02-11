@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "httpkey-python": {
-      "url": "http://127.0.0.1:8080/sse",
+    "cloudrun-manual-python": {
+	     "url": "https://sysutils-manual-python-$PROJECT_NUMBER.us-central1.run.app/sse",
        "headers": {
          "X-Goog-Api-Key": "$MCP_API_KEY"
        }

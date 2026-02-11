@@ -56,6 +56,11 @@ lint:
 	@$(PIP) install ruff
 	@ruff check .
 
+# Deploy to Google Cloud Run via Cloud Build
+deploy:
+	@echo "Deploying to Google Cloud Run..."
+	@gcloud builds submit --config cloudbuild.yaml .
+
 help:
 	@echo "Makefile for the Python MCP project"
 	@echo ""
