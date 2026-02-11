@@ -1,0 +1,12 @@
+ {
+    "mcpServers": {
+      "stdiokey-go": {
+        "command": "$HOME/iap-https-rust/stdiokey-go/stdiokey-go",
+        "args": ["--prebuilt","--stdio"],
+	        "env": {
+          "MCP_API_KEY": "$MCP_API_KEY"
+        }
+
+      }
+    }
+  }
