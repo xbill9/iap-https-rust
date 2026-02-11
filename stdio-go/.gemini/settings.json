@@ -1,0 +1,11 @@
+ {
+    "mcpServers": {
+      "stdio-go": {
+        "command": "$HOME/iap-https-rust/stdio-go/stdio-go",
+        "args": ["--prebuilt","--stdio"],
+        "env": {
+          "LOG": "trace"
+        }
+      }
+    }
+  }
