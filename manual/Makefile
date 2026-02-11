@@ -65,6 +65,22 @@ deploy:
 	@cargo clean
 	@gcloud builds submit . --config cloudbuild.yaml
 
+# Run the info command
+info:
+	@if [ -z "$(MCP_API_KEY)" ]; then \
+                echo "Error: MCP_API_KEY environment variable is not set."; \
+                echo "Please set it before running 'make info', e.g.:"; \
+                echo "  export MCP_API_KEY=\$$(gcloud services api-keys get-key-string ...)"; \
+                exit 1; \
+        fi
+	@cargo run -- info
+
+# Run the disk command
+disk:
+	@cargo run -- disk
+
+
+
 help:
 	@echo "Makefile for the Rust project"
 	@echo ""

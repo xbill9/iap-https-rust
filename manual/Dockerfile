@@ -1,16 +1,25 @@
 # Use a Rust image for building the application
-FROM rust as builder
+FROM rust:1.93-bookworm AS builder
 
 WORKDIR /app
 
 # Copy Cargo.toml and Cargo.lock to leverage Docker cache for dependencies
 COPY Cargo.toml Cargo.lock ./
 
+# Build dependencies first. This layer is cached if Cargo.toml and Cargo.lock don't change.
+# We create a dummy src/main.rs to make cargo happy.
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release --locked --target x86_64-unknown-linux-gnu && \
+    rm -rf src
+
 # Copy the source code
 COPY src ./src
 
-# Build dependencies first. This layer is cached if Cargo.toml and Cargo.lock don't change.
-RUN cargo build --release --locked --target x86_64-unknown-linux-gnu --jobs $(nproc)
+# Build the actual application. 
+# We touch src/main.rs to ensure it's rebuilt after the dummy build.
+RUN touch src/main.rs && \
+    cargo build --release --locked --target x86_64-unknown-linux-gnu
 
 # Use a minimal base image for the final stage
 FROM gcr.io/distroless/cc-debian12

@@ -1,6 +1,6 @@
 [package]
 name = "manual-https-rust"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "System Utilities MCP HTTP transport in Rust"
 license = "MIT"
@@ -15,9 +15,10 @@ serde = { version = "^1.0.219", features = ["derive"] }
 serde_json = "^1.0.140"
 schemars = "1"
 sysinfo = "0.37.2"
-tokio = { version = "^1.46.0", features = ["macros", "rt-multi-thread", "signal"] }
+tokio = { version = "^1.46.0", features = ["macros", "rt-multi-thread", "signal", "process"] }
 tracing = "^0.1.41"
 tracing-subscriber = { version = "^0.3.19", features = ["env-filter", "json"] }
+tower = { version = "0.5", features = ["util"] }
 base64 = "0.22.1"
 google-apikeys2 = "7.0.0"
 yup-oauth2 = "12.1.2"
