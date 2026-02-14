@@ -38,6 +38,10 @@ By default, the server starts with Streaming HTTP transport on port 8080.
 make run
 ```
 
+The server exposes:
+- `/`: The MCP Streaming HTTP endpoint.
+- `/healthz`: A health check endpoint returning `OK`.
+
 ### 2. Direct CLI Commands
 
 You can execute reports directly for quick inspection:
@@ -46,12 +50,31 @@ You can execute reports directly for quick inspection:
 # Check system info (performs API Key verification against Cloud)
 make info KEY=your_api_key
 
-# Check disk usage (key required)
+# Check disk usage (key required for consistency, though not strictly needed for local report)
 make disk KEY=your_api_key
 
 # Check API key status directly
 make check KEY=your_api_key
 ```
+
+## Security
+
+The server validates requests using an API Key. It accepts the key via:
+- `x-goog-api-key` HTTP Header (Recommended)
+- `x-api-key` HTTP Header
+- `apiKey` Query Parameter
+
+By default, it fetches the expected key (named "MCP API Key") from your Google Cloud project.
+
+## Deployment
+
+You can deploy this server to Google Cloud Run using the provided `Makefile` target:
+
+```bash
+make deploy
+```
+
+This uses Google Cloud Build to build the container image and deploy it to a service named `manual-go`.
 
 ## Environment Variables
 

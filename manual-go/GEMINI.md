@@ -31,9 +31,11 @@ You are an expert Go developer and a helpful assistant specializing in writing c
 ## 5. Project Context
 
 - **Variant:** `manual-go` (v1.0.0)
-- **Description:** A Model Context Protocol (MCP) server implemented in Go, providing system utility tools.
+- **Description:** A Model Context Protocol (MCP) server implemented in Go (1.26), providing system utility tools. It uses lazy initialization for the MCP server and API key configuration.
 - **Transport:** Streaming HTTP.
-- **Security:** API Key validation. It fetches the "MCP API Key" from the active Google Cloud project (via `GOOGLE_CLOUD_PROJECT` or `gcloud config`) using `gcloud` or the Google API client library.
+- **Security:** API Key validation using `x-goog-api-key`, `x-api-key` headers, or `apiKey` query param. 
+    - It fetches the "MCP API Key" from the active Google Cloud project.
+    - **Fetching Strategy:** Primarily uses the Google API client library (ADC) for Cloud Run environments, with a fallback to `gcloud services api-keys` CLI for local development.
 - **Tools:**
     - `local_system_info`: Detailed system report (OS, CPU, Memory, Network with MAC/IO stats).
     - `disk_usage`: Disk usage for all mounted partitions.
@@ -41,7 +43,8 @@ You are an expert Go developer and a helpful assistant specializing in writing c
     - `make check`: Verifies API key status.
     - `make info`: Runs system info report directly.
     - `make disk`: Runs disk usage report directly.
-- **Key Libraries:** `github.com/modelcontextprotocol/go-sdk`, `github.com/shirou/gopsutil/v3`.
+    - `make deploy`: Deploys the server to Google Cloud Run via Cloud Build.
+- **Key Libraries:** `github.com/modelcontextprotocol/go-sdk` (v1.3.0), `github.com/shirou/gopsutil/v3`.
 
 ## 6. Agent Interaction Protocol
 
