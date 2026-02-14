@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+       "sysutils-cloudrun-go": {
+               "httpUrl": "https://manual-go-$PROJECT_NUMBER.us-central1.run.app/mcp",
+       "headers": {
+         "X-Goog-Api-Key": "$MCP_API_KEY"
+       }
+    }
+  }
+}
