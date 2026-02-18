@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sysutils-cloudrun-python": {
+    "httpUrl": "https://sysutils-bearer-python-$PROJECT_NUMBER.us-central1.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer $ID_TOKEN"
+      }
+    }
+  }
+}

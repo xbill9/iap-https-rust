@@ -1,0 +1,16 @@
+[project]
+name = "bearer-python"
+version = "0.5.0"
+description = "System Utilities MCP HTTP transport in Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.2.1",
+    "psutil>=6.1.1",
+    "uvicorn>=0.34.0",
+    "starlette>=0.45.2",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

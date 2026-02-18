@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "sysutils-cloudrun-rust": {
-    "httpUrl": "https://sysutils-bearer-rust-$PROJECT_NUMBER.us-central1.run.app/mcp/",
+    "httpUrl": "https://sysutils-bearer-rust-$PROJECT_NUMBER.us-central1.run.app/mcp",
       "headers": {
         "Authorization": "Bearer $ID_TOKEN"
       }

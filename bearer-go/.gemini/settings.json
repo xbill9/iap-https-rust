@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "sysutils-cloudrun-go": {
-    "httpUrl": "https://sysutils-bearer-go-$PROJECT_NUMBER.us-central1.run.app/mcp/",
+    "httpUrl": "https://sysutils-bearer-go-$PROJECT_NUMBER.us-central1.run.app/mcp",
       "headers": {
         "Authorization": "Bearer $ID_TOKEN"
       }
