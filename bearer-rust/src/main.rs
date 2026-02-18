@@ -273,7 +273,7 @@ impl SysUtils {
         description = "Get a detailed system information report including kernel, cores, and memory usage.",
         input_schema = "SYSTEM_INFO_SCHEMA.clone()"
     )]
-    async fn sysutils_proxy_rust(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
+    async fn sysutils_bearer_rust(&self, _params: Parameters<IapSystemInfoRequest>) -> String {
         collect_system_info().await
     }
 
@@ -384,7 +384,7 @@ async fn main() -> Result<()> {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("0.0.0.0:{}", port);
     
-    println!("DEBUG: Starting proxy-rust version 0.3.0-debug");
+    println!("DEBUG: Starting bearer-rust version 0.3.0-debug");
     println!("DEBUG: Environment: PORT={}", port);
 
     println!("DEBUG: Sleeping for 10s before bind to allow environment to settle");
@@ -398,7 +398,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,proxy_rust=debug".into()),
+                .unwrap_or_else(|_| "info,bearer_rust=debug".into()),
         )
         .with(
             tracing_subscriber::fmt::layer()
@@ -487,10 +487,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sysutils_proxy_rust() {
+    async fn test_sysutils_bearer_rust() {
         let sysutils = SysUtils::new();
         let report = sysutils
-            .sysutils_proxy_rust(Parameters(IapSystemInfoRequest {}))
+            .sysutils_bearer_rust(Parameters(IapSystemInfoRequest {}))
             .await;
         assert!(report.contains("System Information Report"));
         assert!(report.contains("CPU Information"));

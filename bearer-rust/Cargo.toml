@@ -1,5 +1,5 @@
 [package]
-name = "proxy-rust"
+name = "bearer-rust"
 version = "0.3.0"
 edition = "2024"
 description = "System Utilities MCP HTTP transport in Rust"

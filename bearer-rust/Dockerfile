@@ -28,10 +28,10 @@ FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/proxy-rust .
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/bearer-rust .
 
 # Expose the port the application listens on
 EXPOSE 8080
 
 # Run the application
-CMD ["./proxy-rust"]
+CMD ["./bearer-rust"]
